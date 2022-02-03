@@ -7,14 +7,16 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
     Message(String),
-    Eof,
+    EofError,
+    IoError(String),
 }
 
 impl Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::Message(msg) => f.write_str(msg),
-            Error::Eof => f.write_str("Unexpected EOF"),
+            Error::EofError => f.write_str("Unexpected EOF"),
+            Error::IoError(msg) => f.write_str(&format!("IO Error: {}", msg)),
         }
     }
 }
@@ -47,6 +49,11 @@ impl From<std::array::TryFromSliceError> for Error {
 impl From<std::string::FromUtf8Error> for Error {
     fn from(err: std::string::FromUtf8Error) -> Self {
         Self::Message(err.to_string())
+    }
+}
+impl From<std::io::Error> for Error {
+    fn from(err: std::io::Error) -> Self {
+        Self::IoError(err.to_string())
     }
 }
 

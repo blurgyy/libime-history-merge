@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, path::Path};
 
 use serde::{
     de::Visitor,
@@ -6,7 +6,11 @@ use serde::{
     Deserialize, Serialize, Serializer,
 };
 
-use crate::de::{SequenceVisitor, StringVisitor};
+use crate::{
+    de::{SequenceVisitor, StringVisitor},
+    error::Result,
+    from_bytes, to_bytes,
+};
 
 pub const MAGIC: u32 = 0x000FC315;
 pub const FORMAT_VERSION: u32 = 0x02;
@@ -36,7 +40,7 @@ impl Serialize for Word {
 }
 
 impl<'de> Deserialize<'de> for Word {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
@@ -76,7 +80,7 @@ impl Serialize for Sentence {
 }
 
 impl<'de> Deserialize<'de> for Sentence {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
@@ -87,8 +91,8 @@ impl<'de> Deserialize<'de> for Sentence {
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
-pub struct Session(pub Vec<Sentence>);
-impl Display for Session {
+pub struct Pool(pub Vec<Sentence>);
+impl Display for Pool {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(
             &self
@@ -101,7 +105,7 @@ impl Display for Session {
     }
 }
 
-impl Serialize for Session {
+impl Serialize for Pool {
     fn serialize<S>(
         &self,
         serializer: S,
@@ -110,21 +114,28 @@ impl Serialize for Session {
         S: Serializer,
     {
         let mut ser = serializer.serialize_seq(Some(self.0.len()))?;
-        for sentence in &self.0 {
+        let oldest_first: Vec<Sentence> =
+            self.0.iter().rev().cloned().collect();
+        for sentence in &oldest_first {
             ser.serialize_element(&sentence)?;
         }
         ser.end()
     }
 }
 
-impl<'de> Deserialize<'de> for Session {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+impl<'de> Deserialize<'de> for Pool {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        Ok(Session(
-            deserializer.deserialize_seq(SequenceVisitor::new())?,
-        ))
+        let newest_first: Vec<Sentence> = (deserializer
+            .deserialize_seq(SequenceVisitor::new())?
+            as Vec<Sentence>)
+            .iter()
+            .rev()
+            .cloned()
+            .collect();
+        Ok(Pool(newest_first))
     }
 }
 
@@ -132,21 +143,39 @@ impl<'de> Deserialize<'de> for Session {
 pub struct History {
     pub magic: u32,
     pub format_version: u32,
-    pub sessions: Vec<Session>,
+    pub pools: Vec<Pool>,
+}
+impl History {
+    pub fn new(pools: Vec<Pool>) -> Self {
+        History {
+            magic: MAGIC,
+            format_version: FORMAT_VERSION,
+            pools,
+        }
+    }
+    pub fn load<P>(p: P) -> Result<Self>
+    where
+        P: AsRef<Path>,
+    {
+        Ok(from_bytes(&std::fs::read(p.as_ref())?)?)
+    }
+    pub fn save<P>(&self, p: P) -> Result<()>
+    where
+        P: AsRef<Path>,
+    {
+        Ok(std::fs::write(p.as_ref(), to_bytes(&self)?)?)
+    }
 }
 impl Display for History {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&format!(
-            "Magic: {}\nFormat version: {}\n{}",
-            &self.magic,
-            &self.format_version,
+        f.write_str(
             &self
-                .sessions
+                .pools
                 .iter()
                 .map(|sess| sess.to_string())
                 .collect::<Vec<_>>()
                 .join("\n"),
-        ))
+        )
     }
 }
 
@@ -161,15 +190,15 @@ impl Serialize for History {
         let mut ser = serializer.serialize_struct("HistoryData", 0)?;
         ser.serialize_field("magic", &self.magic)?;
         ser.serialize_field("format_version", &self.format_version)?;
-        for session in &self.sessions {
-            ser.serialize_field("session", &session)?;
+        for pool in &self.pools {
+            ser.serialize_field("pool", &pool)?;
         }
         ser.end()
     }
 }
 
 impl<'de> Deserialize<'de> for History {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
@@ -180,9 +209,12 @@ impl<'de> Deserialize<'de> for History {
                 &self,
                 formatter: &mut std::fmt::Formatter,
             ) -> std::fmt::Result {
-                formatter.write_str("4 bytes of u32, then another 4 bytes of u32, then an array of sessions (bincode)")
+                formatter.write_str("4 bytes of u32, then another 4 bytes of u32, then an array of pools (bincode)")
             }
-            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            fn visit_seq<A>(
+                self,
+                mut seq: A,
+            ) -> std::result::Result<Self::Value, A::Error>
             where
                 A: serde::de::SeqAccess<'de>,
             {
@@ -216,12 +248,12 @@ impl<'de> Deserialize<'de> for History {
                     )));
                 }
 
-                let sessions = SequenceVisitor::new().visit_seq(seq)?;
+                let pools = SequenceVisitor::new().visit_seq(seq)?;
 
                 Ok(History {
                     magic,
                     format_version,
-                    sessions,
+                    pools,
                 })
             }
         }

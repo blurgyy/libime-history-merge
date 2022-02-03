@@ -13,7 +13,7 @@ mod serde_tests {
     use pretty_assertions::assert_eq;
 
     use crate::{
-        data::{History, Sentence, Session, Word},
+        data::{History, Pool, Sentence, Word},
         error::Result,
         from_bytes, to_bytes,
     };
@@ -37,15 +37,15 @@ mod serde_tests {
     }
 
     #[test]
-    fn session() -> Result<()> {
+    fn pool() -> Result<()> {
         let words = vec![
             Word("音乐".to_string()),
             Word("🎵".to_string()),
             Word("好听".to_string()),
         ];
         let sentence = Sentence(words);
-        let session = Session(vec![sentence]);
-        assert_eq!(session, from_bytes(&to_bytes(&session)?)?);
+        let pool = Pool(vec![sentence]);
+        assert_eq!(pool, from_bytes(&to_bytes(&pool)?)?);
         Ok(())
     }
 
@@ -58,11 +58,11 @@ mod serde_tests {
             Word("好听".to_string()),
         ];
         let sentence = Sentence(words);
-        let session = Session(vec![sentence]);
+        let pool = Pool(vec![sentence]);
         let history = History {
             magic: crate::data::MAGIC,
             format_version: crate::data::FORMAT_VERSION,
-            sessions: vec![session],
+            pools: vec![pool],
         };
         assert_eq!(history, from_bytes(&to_bytes(&history)?)?);
         Ok(())

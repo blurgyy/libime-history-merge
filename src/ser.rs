@@ -371,7 +371,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use crate::{
-        data::{History, Sentence, Session, Word},
+        data::{History, Pool, Sentence, Word},
         to_bytes, Result,
     };
 
@@ -400,27 +400,27 @@ mod tests {
     }
 
     #[test]
-    fn session() -> Result<()> {
+    fn pool() -> Result<()> {
         let words = vec![
             Word("音乐".to_string()),
             Word("🎵".to_string()),
             Word("好听".to_string()),
         ];
         let sentence = Sentence(words);
-        let session = Session(vec![sentence]);
-        let expected_session_bytes = vec![
+        let pool = Pool(vec![sentence]);
+        let expected_pool_bytes = vec![
             0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 6, 233, 159, 179, 228, 185, 144,
             0, 0, 0, 4, 240, 159, 142, 181, 0, 0, 0, 6, 229, 165, 189, 229,
             144, 172,
         ];
-        assert_eq!(to_bytes(&session)?, expected_session_bytes);
+        assert_eq!(to_bytes(&pool)?, expected_pool_bytes);
         Ok(())
     }
 
     #[test]
     fn history() -> Result<()> {
         let mut sentences: Vec<Sentence> = Vec::new();
-        let mut sessions: Vec<Session> = Vec::new();
+        let mut pools: Vec<Pool> = Vec::new();
 
         let words = vec![
             Word("🎵".to_string()),
@@ -430,7 +430,7 @@ mod tests {
         sentences.push(Sentence(words));
         let words = vec![Word("好听".to_string())];
         sentences.push(Sentence(words));
-        sessions.push(Session(sentences.to_owned()));
+        pools.push(Pool(sentences.to_owned()));
         let words = vec![
             Word("🎵".to_string()),
             Word("音乐".to_string()),
@@ -438,24 +438,24 @@ mod tests {
             Word("好听".to_string()),
         ];
         sentences.push(Sentence(words));
-        sessions.push(Session(sentences));
+        pools.push(Pool(sentences));
         let history = History {
             magic: 998244353,
             format_version: 0x3f3f3f3f,
-            sessions,
+            pools,
         };
         let expected_history_bytes = vec![
-            59, 128, 0, 1, 63, 63, 63, 63, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0,
-            4, 240, 159, 142, 181, 0, 0, 0, 6, 233, 159, 179, 228, 185, 144,
-            0, 0, 0, 4, 240, 159, 146, 191, 0, 0, 0, 1, 0, 0, 0, 6, 229, 165,
-            189, 229, 144, 172, 0, 0, 0, 3, 0, 0, 0, 3, 0, 0, 0, 4, 240, 159,
-            142, 181, 0, 0, 0, 6, 233, 159, 179, 228, 185, 144, 0, 0, 0, 4,
-            240, 159, 146, 191, 0, 0, 0, 1, 0, 0, 0, 6, 229, 165, 189, 229,
-            144, 172, 0, 0, 0, 4, 0, 0, 0, 4, 240, 159, 142, 181, 0, 0, 0, 6,
-            233, 159, 179, 228, 185, 144, 0, 0, 0, 4, 240, 159, 146, 191, 0,
-            0, 0, 6, 229, 165, 189, 229, 144, 172,
+            59, 128, 0, 1, 63, 63, 63, 63, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0,
+            6, 229, 165, 189, 229, 144, 172, 0, 0, 0, 3, 0, 0, 0, 4, 240,
+            159, 142, 181, 0, 0, 0, 6, 233, 159, 179, 228, 185, 144, 0, 0, 0,
+            4, 240, 159, 146, 191, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0, 4, 240,
+            159, 142, 181, 0, 0, 0, 6, 233, 159, 179, 228, 185, 144, 0, 0, 0,
+            4, 240, 159, 146, 191, 0, 0, 0, 6, 229, 165, 189, 229, 144, 172,
+            0, 0, 0, 1, 0, 0, 0, 6, 229, 165, 189, 229, 144, 172, 0, 0, 0, 3,
+            0, 0, 0, 4, 240, 159, 142, 181, 0, 0, 0, 6, 233, 159, 179, 228,
+            185, 144, 0, 0, 0, 4, 240, 159, 146, 191,
         ];
-        assert_eq!(to_bytes(&history)?, expected_history_bytes);
+        std::assert_eq!(to_bytes(&history)?, expected_history_bytes);
         Ok(())
     }
 }

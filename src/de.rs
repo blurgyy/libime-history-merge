@@ -18,7 +18,7 @@ impl<'de> Deserializer<'de> {
     /// Consumes next `len` bytes from input and return it
     pub fn next_exact_bytes(&mut self, len: usize) -> Result<&[u8]> {
         if len > self.input.len() {
-            Err(Error::Eof)
+            Err(Error::EofError)
         } else {
             let slce = &self.input[..len];
             self.input = &self.input[len..];
@@ -432,7 +432,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use crate::{
-        data::{History, Sentence, Session, Word},
+        data::{History, Pool, Sentence, Word},
         from_bytes, Result,
     };
 
@@ -463,18 +463,18 @@ mod tests {
     }
 
     #[test]
-    fn session() -> Result<()> {
-        let session_bytes = vec![
+    fn pool() -> Result<()> {
+        let pool_bytes = vec![
             0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 6, 233, 159, 179, 228, 185, 144,
             0, 0, 0, 4, 240, 159, 142, 181, 0, 0, 0, 6, 229, 165, 189, 229,
             144, 172,
         ];
-        let expected_session = Session(vec![Sentence(vec![
+        let expected_pool = Pool(vec![Sentence(vec![
             Word("音乐".to_string()),
             Word("🎵".to_string()),
             Word("好听".to_string()),
         ])]);
-        assert_eq!(from_bytes::<Session>(&session_bytes)?, expected_session);
+        assert_eq!(from_bytes::<Pool>(&pool_bytes)?, expected_pool);
         Ok(())
     }
 
@@ -482,22 +482,22 @@ mod tests {
     fn history() -> Result<()> {
         let history_bytes = vec![
             0x00, 0x0f, 0xc3, 0x15, 0x00, 0x00, 0x00, 0x02, 0, 0, 0, 2, 0, 0,
-            0, 3, 0, 0, 0, 4, 240, 159, 142, 181, 0, 0, 0, 6, 233, 159, 179,
-            228, 185, 144, 0, 0, 0, 4, 240, 159, 146, 191, 0, 0, 0, 1, 0, 0,
-            0, 6, 229, 165, 189, 229, 144, 172, 0, 0, 0, 3, 0, 0, 0, 3, 0, 0,
+            0, 1, 0, 0, 0, 6, 229, 165, 189, 229, 144, 172, 0, 0, 0, 3, 0, 0,
             0, 4, 240, 159, 142, 181, 0, 0, 0, 6, 233, 159, 179, 228, 185,
-            144, 0, 0, 0, 4, 240, 159, 146, 191, 0, 0, 0, 1, 0, 0, 0, 6, 229,
-            165, 189, 229, 144, 172, 0, 0, 0, 4, 0, 0, 0, 4, 240, 159, 142,
-            181, 0, 0, 0, 6, 233, 159, 179, 228, 185, 144, 0, 0, 0, 4, 240,
-            159, 146, 191, 0, 0, 0, 6, 229, 165, 189, 229, 144, 172,
+            144, 0, 0, 0, 4, 240, 159, 146, 191, 0, 0, 0, 3, 0, 0, 0, 4, 0,
+            0, 0, 4, 240, 159, 142, 181, 0, 0, 0, 6, 233, 159, 179, 228, 185,
+            144, 0, 0, 0, 4, 240, 159, 146, 191, 0, 0, 0, 6, 229, 165, 189,
+            229, 144, 172, 0, 0, 0, 1, 0, 0, 0, 6, 229, 165, 189, 229, 144,
+            172, 0, 0, 0, 3, 0, 0, 0, 4, 240, 159, 142, 181, 0, 0, 0, 6, 233,
+            159, 179, 228, 185, 144, 0, 0, 0, 4, 240, 159, 146, 191,
         ];
         dbg!(crate::data::MAGIC);
         dbg!(crate::data::FORMAT_VERSION);
         let expected_history = History {
             magic: crate::data::MAGIC,
             format_version: crate::data::FORMAT_VERSION,
-            sessions: vec![
-                Session(vec![
+            pools: vec![
+                Pool(vec![
                     Sentence(vec![
                         Word("🎵".to_string()),
                         Word("音乐".to_string()),
@@ -505,7 +505,7 @@ mod tests {
                     ]),
                     Sentence(vec![Word("好听".to_string())]),
                 ]),
-                Session(vec![
+                Pool(vec![
                     Sentence(vec![
                         Word("🎵".to_string()),
                         Word("音乐".to_string()),
