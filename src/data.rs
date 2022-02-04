@@ -57,6 +57,7 @@ impl Display for Sentence {
                 .0
                 .iter()
                 .map(|w| w.to_string())
+                .filter(|w| !w.is_empty())
                 .collect::<Vec<_>>()
                 .join(" "),
         )
@@ -99,6 +100,7 @@ impl Display for Pool {
                 .0
                 .iter()
                 .map(|s| s.to_string())
+                .filter(|s| !s.is_empty())
                 .collect::<Vec<_>>()
                 .join("\n"),
         )
@@ -172,7 +174,8 @@ impl Display for History {
             &self
                 .pools
                 .iter()
-                .map(|sess| sess.to_string())
+                .map(|pool| pool.to_string())
+                .filter(|pool| !pool.is_empty())
                 .collect::<Vec<_>>()
                 .join("\n"),
         )
