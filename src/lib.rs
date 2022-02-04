@@ -2,10 +2,12 @@ pub mod data;
 
 mod de;
 mod error;
+mod merging;
 mod ser;
 
 pub use de::{from_bytes, Deserializer};
 pub use error::{Error, Result};
+pub use merging::merge;
 pub use ser::{to_bytes, Serializer};
 
 #[cfg(test)]

@@ -7,8 +7,11 @@ pub type Result<T> = std::result::Result<T, Error>;
 #[derive(Clone, Debug, PartialEq)]
 pub enum Error {
     Message(String),
+    LogicError(String),
     EofError,
     IoError(String),
+    SerializeError(String),
+    DeserializeError(String),
 }
 
 impl Display for Error {
@@ -17,6 +20,15 @@ impl Display for Error {
             Error::Message(msg) => f.write_str(msg),
             Error::EofError => f.write_str("Unexpected EOF"),
             Error::IoError(msg) => f.write_str(&format!("IO Error: {}", msg)),
+            Error::LogicError(msg) => {
+                f.write_str(&format!("Logic Error: {}", msg))
+            }
+            Error::SerializeError(msg) => {
+                f.write_str(&format!("Serialize Error: {}", msg))
+            }
+            Error::DeserializeError(msg) => {
+                f.write_str(&format!("Serialize Error: {}", msg))
+            }
         }
     }
 }
@@ -28,7 +40,7 @@ impl ser::Error for Error {
     where
         T: Display,
     {
-        Error::Message(msg.to_string())
+        Error::SerializeError(msg.to_string())
     }
 }
 
@@ -37,7 +49,7 @@ impl de::Error for Error {
     where
         T: Display,
     {
-        Error::Message(msg.to_string())
+        Error::DeserializeError(msg.to_string())
     }
 }
 

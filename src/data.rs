@@ -15,7 +15,7 @@ use crate::{
 pub const MAGIC: u32 = 0x000FC315;
 pub const FORMAT_VERSION: u32 = 0x02;
 
-#[derive(Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Default, PartialEq, PartialOrd)]
 pub struct Word(
     /// Use `String` here because it is read from dumped `user.history` so it
     /// must be valid UTF-8.
@@ -48,7 +48,7 @@ impl<'de> Deserialize<'de> for Word {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Default, PartialEq, PartialOrd)]
 pub struct Sentence(pub Vec<Word>);
 impl Display for Sentence {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -91,7 +91,7 @@ impl<'de> Deserialize<'de> for Sentence {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Default, PartialEq, PartialOrd)]
 pub struct Pool(pub Vec<Sentence>);
 impl Display for Pool {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -166,6 +166,28 @@ impl History {
         P: AsRef<Path>,
     {
         Ok(std::fs::write(p.as_ref(), to_bytes(&self)?)?)
+    }
+
+    /// Get all sentences into one array.
+    pub fn get_sentences(&self) -> Vec<Sentence> {
+        let mut vvs: Vec<Vec<Sentence>> =
+            self.pools.iter().map(|pool| pool.0.to_owned()).collect();
+        let mut ret = Vec::new();
+        for vs in &mut vvs {
+            ret.append(vs)
+        }
+        ret
+    }
+}
+impl Default for History {
+    fn default() -> Self {
+        History {
+            magic: MAGIC,
+            format_version: FORMAT_VERSION,
+            pools: vec![Pool::default(); 3], /* 3 pools from current
+                                              * version of libime's saved
+                                              * history data */
+        }
     }
 }
 impl Display for History {
