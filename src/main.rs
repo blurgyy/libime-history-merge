@@ -17,12 +17,19 @@ pub struct Opt {
     /// More `user.history` files.
     pub more_paths: Vec<PathBuf>,
 
-    /// If present, merge given histories into if not present, inspect the
-    /// merged history in plain text.
+    /// Comma-separated values, represents relative weights assigned to each
+    /// of the input history data while merging, sum of given values are
+    /// normalized to 1.
+    #[structopt(short, long, use_delimiter = true)]
+    pub weights: Vec<f32>,
+
+    /// If present, merge given history data into one;  If not present,
+    /// inspect the merged history data in plain text.
     #[structopt(short, long)]
     pub output: Option<PathBuf>,
 
-    /// If present, do not invoke a pager
+    /// If present, do not invoke a pager (pager defaults to the environment
+    /// variable $PAGER's value)
     #[structopt(short, long)]
     pub no_pager: bool,
 }
@@ -37,19 +44,25 @@ fn merge(histories: Vec<History>) -> Result<History> {
     Ok(History::new(pools))
 }
 
-fn main() -> Result<()> {
+fn setup() -> Opt {
     // Suppress "Broken pipe" error when piping stdout to a pager and not
     // scrolling to the bottom.  Below snippet is taken from this link:
     // https://github.com/rust-lang/rust/issues/46016#issuecomment-428106774
     unsafe {
         libc::signal(libc::SIGPIPE, libc::SIG_DFL);
     }
+    pretty_env_logger::init();
+    let opts = Opt::from_args();
 
-    let mut opts = Opt::from_args();
-
-    if !opts.no_pager {
+    if !opts.no_pager && opts.output.is_none() {
         pager::Pager::with_default_pager("less").setup();
     }
+
+    opts
+}
+
+fn run() -> Result<()> {
+    let mut opts = setup();
 
     let mut histories = vec![opts.user_history_path];
     histories.append(&mut opts.more_paths);
@@ -64,7 +77,7 @@ fn main() -> Result<()> {
         Some(path) => {
             if path.exists() {
                 return Err(Error::IoError(
-                    "Target path already exists".to_owned(),
+                    "Output path already exists".to_owned(),
                 ));
             }
             std::fs::write(&path, to_bytes(&merged)?)?;
@@ -76,6 +89,16 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+fn main() {
+    match run() {
+        Err(e) => {
+            log::error!("{}", e);
+            std::process::exit(1);
+        }
+        Ok(_) => {}
+    }
 }
 
 // Author: Blurgy <gy@blurgy.xyz>
