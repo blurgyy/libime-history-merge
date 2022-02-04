@@ -21,6 +21,10 @@ pub struct Opt {
     /// merged history in plain text.
     #[structopt(short, long)]
     pub output: Option<PathBuf>,
+
+    /// If present, do not invoke a pager
+    #[structopt(short, long)]
+    pub no_pager: bool,
 }
 
 fn merge(histories: Vec<History>) -> Result<History> {
@@ -40,7 +44,12 @@ fn main() -> Result<()> {
     unsafe {
         libc::signal(libc::SIGPIPE, libc::SIG_DFL);
     }
+
     let mut opts = Opt::from_args();
+
+    if !opts.no_pager {
+        pager::Pager::with_default_pager("less").setup();
+    }
 
     let mut histories = vec![opts.user_history_path];
     histories.append(&mut opts.more_paths);
