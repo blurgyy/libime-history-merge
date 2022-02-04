@@ -6,7 +6,7 @@ const POOL_SIZE: &[usize] = &[128, 8192, 65536];
 #[derive(Debug)]
 struct WeightedHistory<'a> {
     sentences: &'a [Sentence],
-    weight: f32,
+    weight: usize,
 }
 impl<'a> WeightedHistory<'a> {
     fn next_exact(&mut self, size: usize) -> &'a [Sentence] {
@@ -34,10 +34,14 @@ fn gen_pool(
             let mut sentences: Vec<Sentence> =
                 Vec::with_capacity(target_size);
 
+            let sum_of_weights: usize =
+                sorted_weighted_histories.iter().map(|x| x.weight).sum();
+
             // Iterate untill last entry
             for hist in &mut sorted_weighted_histories[..len - 1] {
-                let target_size =
-                    ((target_size as f32) * hist.weight) as usize;
+                let target_size = ((target_size as f32)
+                    * (hist.weight as f32 / sum_of_weights as f32))
+                    as usize;
                 log::trace!("Requesting {} sentences", target_size);
                 sentences.append(&mut hist.next_exact(target_size).to_owned())
             }
@@ -51,6 +55,78 @@ fn gen_pool(
                     .to_owned(),
             );
 
+            assert!(
+                sentences.len() <= target_size,
+                "Generated vector of length {} but expected length to be less or equal to {}",
+                sentences.len(),
+                target_size,
+            );
+            Pool(sentences)
+        }
+    }
+}
+
+fn gen_pool_mixed(
+    target_size: usize,
+    sorted_weighted_histories: &mut Vec<WeightedHistory>,
+) -> Pool {
+    let len = sorted_weighted_histories.len();
+    match len {
+        0 => Pool::default(),
+        1 => Pool(
+            sorted_weighted_histories[0]
+                .next_exact(target_size)
+                .to_owned(),
+        ),
+        _ => {
+            let mut sentences: Vec<Sentence> =
+                Vec::with_capacity(target_size);
+
+            let min_weight = sorted_weighted_histories
+                .iter()
+                .map(|x| x.weight)
+                .min()
+                .unwrap();
+            let partition: Vec<usize> = sorted_weighted_histories
+                .iter()
+                .map(|x| {
+                    (x.weight as f32 / min_weight as f32).ceil() as usize
+                })
+                .collect();
+            let chunk_size: usize = partition.iter().sum();
+            let whole_chunks: usize =
+                (target_size as f32 / chunk_size as f32) as usize;
+
+            for _ in 0..whole_chunks {
+                for (i, part) in partition.iter().enumerate() {
+                    sentences.append(
+                        &mut sorted_weighted_histories[i]
+                            .next_exact(*part)
+                            .to_owned(),
+                    );
+                }
+            }
+
+            let mut remaining_size = target_size - sentences.len();
+            for (i, part) in partition.iter().enumerate() {
+                let next_size = std::cmp::min(*part, remaining_size);
+                sentences.append(
+                    &mut sorted_weighted_histories[i]
+                        .next_exact(next_size)
+                        .to_owned(),
+                );
+                remaining_size -= next_size;
+                if remaining_size == 0 {
+                    break;
+                }
+            }
+
+            assert!(
+                sentences.len() <= target_size,
+                "Generated vector of length {} but expected length to be less or equal to {}",
+                sentences.len(),
+                target_size,
+            );
             Pool(sentences)
         }
     }
@@ -60,6 +136,7 @@ fn gen_pool(
 pub fn merge(
     histories: Vec<History>,
     weights: Vec<usize>,
+    mixed: bool,
 ) -> Result<History> {
     let weights = if weights.is_empty() {
         log::info!("Using identical weights for each history data");
@@ -78,13 +155,12 @@ pub fn merge(
 
     let histories: Vec<Vec<Sentence>> =
         histories.iter().map(|hist| hist.get_sentences()).collect();
-    let sum_of_weights = weights.iter().sum::<usize>();
 
     let mut weighted_histories: Vec<WeightedHistory> = Vec::new();
     for (i, hist) in histories.iter().enumerate() {
         weighted_histories.push(WeightedHistory {
             sentences: &hist,
-            weight: weights[i] as f32 / sum_of_weights as f32,
+            weight: weights[i],
         })
     }
 
@@ -94,7 +170,11 @@ pub fn merge(
 
     let mut pools: Vec<Pool> = Vec::with_capacity(3);
     for size in POOL_SIZE {
-        pools.push(gen_pool(*size, &mut weighted_histories));
+        pools.push(if mixed {
+            gen_pool_mixed(*size, &mut weighted_histories)
+        } else {
+            gen_pool(*size, &mut weighted_histories)
+        });
     }
 
     Ok(History::new(pools))

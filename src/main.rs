@@ -23,8 +23,12 @@ pub struct Opt {
     #[structopt(short, long, use_delimiter = true)]
     pub weights: Vec<usize>,
 
-    /// If present, merge given history data into one;  If not present,
-    /// inspect the merged history data in plain text.
+    /// If present, mix history entries while merging.
+    #[structopt(short, long)]
+    pub mixed: bool,
+
+    /// If present, write merged history data to specified path;  If not
+    /// present, inspect the merged history data in plain text.
     #[structopt(short, long)]
     pub output: Option<PathBuf>,
 
@@ -61,7 +65,7 @@ fn run() -> Result<()> {
         .map(|hist_path| History::load(hist_path))
         .collect::<Result<_>>()?;
 
-    let merged = merge(histories, opts.weights)?;
+    let merged = merge(histories, opts.weights, opts.mixed)?;
 
     match opts.output {
         Some(path) => {
