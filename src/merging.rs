@@ -31,10 +31,10 @@ impl<'a> WeightedHistory<'a> {
 fn mix_sentences(
     target_size: usize,
     sorted_weighted_histories: &mut [WeightedHistory],
-) -> Result<Vec<Sentence>> {
+) -> Vec<Sentence> {
     match sorted_weighted_histories.len() {
-        0 => Ok(Vec::new()),
-        1 => Ok(sorted_weighted_histories[0].sentences.to_vec()),
+        0 => Vec::new(),
+        1 => sorted_weighted_histories[0].sentences.to_vec(),
         _ => {
             let total_input_size = sorted_weighted_histories
                 .iter()
@@ -102,7 +102,7 @@ fn mix_sentences(
 
             if sentences.len() == std::cmp::min(target_size, total_input_size)
             {
-                Ok(sentences)
+                sentences
             } else {
                 // Did not manage to use all history entries
                 panic!("bad length of mixed sentences")
@@ -146,7 +146,7 @@ pub fn merge(histories: Vec<History>, weights: Vec<u8>) -> Result<History> {
         .sort_by(|lhs, rhs| rhs.weight.partial_cmp(&lhs.weight).unwrap());
 
     let pools = split_vec(
-        mix_sentences(POOL_SIZE.iter().sum(), &mut weighted_histories)?,
+        mix_sentences(POOL_SIZE.iter().sum(), &mut weighted_histories),
         POOL_SIZE,
     )
     .iter()
