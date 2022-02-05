@@ -257,7 +257,7 @@ impl<'de> Deserialize<'de> for History {
                     u32::from_be_bytes(magic_bytes.try_into().unwrap());
                 if magic != MAGIC {
                     return Err(serde::de::Error::custom(format!(
-                        "Invalid history magic (expected 0x{:08x}, found 0x{:08x})",
+                        "Invalid history magic (expected 0x{:08x}, got 0x{:08x})",
                         MAGIC,
                         magic,
                     )));
@@ -272,7 +272,7 @@ impl<'de> Deserialize<'de> for History {
                 );
                 if format_version != FORMAT_VERSION {
                     return Err(serde::de::Error::custom(format!(
-                        "Invalid format version (expected 0x{:08x}, found 0x{:08x})",
+                        "Invalid format version (expected 0x{:08x}, got 0x{:08x})",
                         FORMAT_VERSION,
                         format_version,
                     )));
