@@ -11,10 +11,10 @@ pub(crate) fn split_vec<T: Clone>(v: Vec<T>, sizes: &[usize]) -> Vec<Vec<T>> {
     let mut v = v;
     for size in sizes {
         let size = std::cmp::min(v.len(), *size);
-        log::trace!("appending {}-sized vec", size);
         if size == 0 {
             break;
         }
+        log::debug!("appending {}-sized vec", size);
         ret.push(v[0..size].to_vec());
         v = v[size..].to_vec();
     }

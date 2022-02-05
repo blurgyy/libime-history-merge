@@ -12,7 +12,11 @@ struct WeightedHistory<'a> {
 impl<'a> WeightedHistory<'a> {
     fn next_exact(&mut self, size: usize) -> &'a [Sentence] {
         let size = std::cmp::min(size, self.sentences.len());
-        log::trace!("Got {} sentences", size);
+        log::trace!(
+            "got {} sentence{}",
+            size,
+            if size == 1 { "" } else { "s" }
+        );
         match size {
             0 => &[], // no op
             _ => {
@@ -24,15 +28,19 @@ impl<'a> WeightedHistory<'a> {
     }
 }
 
-fn gen_mixed_sentences(
+fn mix_sentences(
+    target_size: usize,
     sorted_weighted_histories: &mut [WeightedHistory],
-) -> Vec<Sentence> {
-    let len = sorted_weighted_histories.len();
-    let target_size = POOL_SIZE.iter().sum();
-    match len {
-        0 => Vec::new(),
-        1 => sorted_weighted_histories[0].sentences.to_vec(),
+) -> Result<Vec<Sentence>> {
+    match sorted_weighted_histories.len() {
+        0 => Ok(Vec::new()),
+        1 => Ok(sorted_weighted_histories[0].sentences.to_vec()),
         _ => {
+            let total_input_size = sorted_weighted_histories
+                .iter()
+                .map(|wh| wh.sentences.len())
+                .sum();
+
             let mut sentences: Vec<Sentence> =
                 Vec::with_capacity(target_size);
 
@@ -92,14 +100,13 @@ fn gen_mixed_sentences(
                 }
             }
 
-            assert!(
-                sentences.len() <= target_size,
-                "Generated vector of length {} but expected length to be less than or equal to {}",
-                sentences.len(),
-                target_size,
-            );
-
-            sentences
+            if sentences.len() == std::cmp::min(target_size, total_input_size)
+            {
+                Ok(sentences)
+            } else {
+                // Did not manage to use all history entries
+                panic!("bad length of mixed sentences")
+            }
         }
     }
 }
@@ -138,11 +145,13 @@ pub fn merge(histories: Vec<History>, weights: Vec<u8>) -> Result<History> {
     weighted_histories
         .sort_by(|lhs, rhs| rhs.weight.partial_cmp(&lhs.weight).unwrap());
 
-    let pools =
-        split_vec(gen_mixed_sentences(&mut weighted_histories), POOL_SIZE)
-            .iter()
-            .map(|vec_sentence| Pool(vec_sentence.to_owned()))
-            .collect();
+    let pools = split_vec(
+        mix_sentences(POOL_SIZE.iter().sum(), &mut weighted_histories)?,
+        POOL_SIZE,
+    )
+    .iter()
+    .map(|vec_sentence| Pool(vec_sentence.to_owned()))
+    .collect();
 
     Ok(History::new(pools))
 }
