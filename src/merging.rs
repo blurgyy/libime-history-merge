@@ -76,9 +76,15 @@ fn mix_sentences(
                     if sentences.len() == target_size {
                         break;
                     }
+                    // After pusing, total number of sentences should not
+                    // exceed `target_size`
+                    let next_size = std::cmp::min(
+                        *part % min_part, // mod here
+                        target_size - sentences.len(),
+                    );
                     sentences.append(
                         &mut sorted_weighted_histories[i]
-                            .next_exact(*part % (min_part as usize)) // mod here
+                            .next_exact(next_size)
                             .to_owned(),
                     );
                 }
@@ -91,9 +97,15 @@ fn mix_sentences(
                         if sentences.len() == target_size {
                             break;
                         }
+                        // After pusing, total number of sentences should not
+                        // exceed `target_size`
+                        let next_size = std::cmp::min(
+                            *part / min_part, // divide here
+                            target_size - sentences.len(),
+                        );
                         sentences.append(
                             &mut sorted_weighted_histories[i]
-                                .next_exact(*part / (min_part as usize)) // divide here
+                                .next_exact(next_size)
                                 .to_owned(),
                         );
                     }
@@ -105,7 +117,11 @@ fn mix_sentences(
                 sentences
             } else {
                 // Did not manage to use all history entries
-                panic!("bad length of mixed sentences")
+                panic!(
+                    "bad length of mixed sentences (expected {}, got {})",
+                    std::cmp::min(target_size, total_input_size),
+                    sentences.len(),
+                )
             }
         }
     }
