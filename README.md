@@ -33,11 +33,11 @@ passing a `-n|--no-pager` flag or redirecting output will suppress the pager.
 
 #### Balanced Merge
 
-Pass the `-o|--output` option to specify saving file:
+Pass the `-o|--output` option to specify saving path:
 
 ```shell
 $ libime-history-merge \
-    machine1.history machine2.history machin3.history \
+    machine1.history machine2.history machine3.history \
     -o merged.history
 $ libime-history-merge merged.history  # Inspect the merged history
 ```
@@ -49,7 +49,7 @@ It's also possible to do a weighted merge by passing the weights via the
 
 ```shell
 $ libime-history-merge \
-    machine1.history machine2.history machin3.history \
+    machine1.history machine2.history machine3.history \
     -w 2,5,3 \
     -o merged.history
 $ libime-history-merge merged.history  # Inspect the merged history

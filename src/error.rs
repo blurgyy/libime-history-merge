@@ -27,7 +27,7 @@ impl Display for Error {
                 f.write_str(&format!("Serialize Error: {}", msg))
             }
             Error::DeserializeError(msg) => {
-                f.write_str(&format!("Serialize Error: {}", msg))
+                f.write_str(&format!("Deserialize Error: {}", msg))
             }
         }
     }
