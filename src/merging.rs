@@ -1,4 +1,5 @@
 use crate::data::{History, Pool, Sentence};
+use crate::utils::{gcd, split_vec};
 use crate::{Error, Result};
 
 const POOL_SIZE: &[usize] = &[128, 8192, 65536];
@@ -44,7 +45,7 @@ fn gen_pool(
                 .map(|x| x.weight as usize)
                 .sum();
 
-            // Iterate untill last entry
+            // Iterate until last entry
             for hist in &mut sorted_weighted_histories[..len - 1] {
                 let target_size = ((target_size as f32)
                     * (hist.weight as f32 / sum_of_weights as f32))
@@ -73,94 +74,71 @@ fn gen_pool(
     }
 }
 
-fn gcd(a: u8, b: u8) -> u8 {
-    match b {
-        0 => a,
-        _ => gcd(b, a % b),
-    }
-}
-
-fn gen_pool_mixed(
-    target_size: usize,
+fn gen_mixed_sentences(
     sorted_weighted_histories: &mut Vec<WeightedHistory>,
-) -> Pool {
+) -> Vec<Sentence> {
     let len = sorted_weighted_histories.len();
+    let target_size = POOL_SIZE.iter().sum();
     match len {
-        0 => Pool::default(),
-        1 => Pool(
-            sorted_weighted_histories[0]
-                .next_exact(target_size)
-                .to_owned(),
-        ),
+        0 => Vec::new(),
+        1 => sorted_weighted_histories[0].sentences.to_vec(),
         _ => {
             let mut sentences: Vec<Sentence> =
                 Vec::with_capacity(target_size);
 
-            let g = sorted_weighted_histories
-                .iter()
-                .map(|x| x.weight)
-                .reduce(|lhs, rhs| {
-                    gcd(std::cmp::max(lhs, rhs), std::cmp::min(lhs, rhs))
-                })
-                .unwrap();
-            let partition: Vec<usize> = sorted_weighted_histories
-                .iter()
-                .map(|x| (x.weight / g) as usize)
-                .collect();
+            let partition: Vec<usize> = {
+                let g = sorted_weighted_histories
+                    .iter()
+                    .map(|x| x.weight)
+                    .reduce(|lhs, rhs| {
+                        gcd(std::cmp::max(lhs, rhs), std::cmp::min(lhs, rhs))
+                    })
+                    .unwrap();
+                sorted_weighted_histories
+                    .iter()
+                    .map(|x| (x.weight / g) as usize)
+                    .collect()
+            };
+            let min_part: usize = *partition.iter().min().unwrap();
 
-            let chunk_size: usize = partition.iter().sum();
-            let whole_chunks: usize =
-                (target_size as f32 / chunk_size as f32) as usize;
+            loop {
+                if sentences.len() == target_size
+                    || sorted_weighted_histories
+                        .iter()
+                        .all(|wh| wh.sentences.is_empty())
+                {
+                    break;
+                }
 
-            // Push whole chunks
-            for _ in 0..whole_chunks {
                 // Mix remainders
                 for (i, part) in partition.iter().enumerate() {
+                    if sorted_weighted_histories[i].sentences.is_empty() {
+                        continue;
+                    }
+                    if sentences.len() == target_size {
+                        break;
+                    }
                     sentences.append(
                         &mut sorted_weighted_histories[i]
-                            .next_exact(*part % (g as usize)) // mod here
+                            .next_exact(*part % (min_part as usize)) // mod here
                             .to_owned(),
                     );
                 }
-                // Mix quotient
-                for _ in 0..g {
+                // Mix quotients
+                for _ in 0..min_part {
                     for (i, part) in partition.iter().enumerate() {
+                        if sorted_weighted_histories[i].sentences.is_empty() {
+                            continue;
+                        }
+                        if sentences.len() == target_size {
+                            break;
+                        }
                         sentences.append(
                             &mut sorted_weighted_histories[i]
-                                .next_exact(*part / (g as usize)) // divide here
+                                .next_exact(*part / (min_part as usize)) // divide here
                                 .to_owned(),
                         );
                     }
-                }
-            }
-
-            // Push remaining partial chunk
-            // Mix remainders
-            for (i, part) in partition.iter().enumerate() {
-                // `next_size` becomes zero when remaining_size is zero
-                let next_size = std::cmp::min(
-                    target_size - sentences.len(),
-                    *part % (g as usize), // mod here
-                );
-                sentences.append(
-                    &mut sorted_weighted_histories[i]
-                        .next_exact(next_size)
-                        .to_owned(),
-                );
-            }
-            // Mix quotient
-            for _ in 0..g {
-                for (i, part) in partition.iter().enumerate() {
-                    // `next_size` becomes zero when remaining_size is zero
-                    let next_size = std::cmp::min(
-                        target_size - sentences.len(),
-                        *part / (g as usize), // divide here
-                    );
-                    sentences.append(
-                        &mut sorted_weighted_histories[i]
-                            .next_exact(next_size)
-                            .to_owned(),
-                    );
                 }
             }
 
@@ -170,7 +148,8 @@ fn gen_pool_mixed(
                 sentences.len(),
                 target_size,
             );
-            Pool(sentences)
+
+            sentences
         }
     }
 }
@@ -209,18 +188,35 @@ pub fn merge(
         })
     }
 
-    // Sort decending
+    // Sort decending by weight
     weighted_histories
         .sort_by(|lhs, rhs| rhs.weight.partial_cmp(&lhs.weight).unwrap());
 
+    dbg!(&weighted_histories
+        .iter()
+        .map(|wh| wh.weight)
+        .collect::<Vec<_>>());
+
     let mut pools: Vec<Pool> = Vec::with_capacity(3);
-    for size in POOL_SIZE {
-        pools.push(if mixed {
-            gen_pool_mixed(*size, &mut weighted_histories)
-        } else {
-            gen_pool(*size, &mut weighted_histories)
-        });
+    if mixed {
+        pools = split_vec(
+            gen_mixed_sentences(&mut weighted_histories),
+            POOL_SIZE,
+        )
+        .iter()
+        .map(|vec_sentence| Pool(vec_sentence.to_owned()))
+        .collect();
+    } else {
+        for size in POOL_SIZE {
+            pools.push(gen_pool(*size, &mut weighted_histories));
+        }
     }
+
+    let rem_sizes: Vec<usize> = weighted_histories
+        .iter()
+        .map(|wh| wh.sentences.len())
+        .collect();
+    dbg!(rem_sizes);
 
     Ok(History::new(pools))
 }

@@ -4,6 +4,7 @@ mod de;
 mod error;
 mod merging;
 mod ser;
+mod utils;
 
 pub use de::{from_bytes, Deserializer};
 pub use error::{Error, Result};
