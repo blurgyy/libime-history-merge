@@ -21,7 +21,7 @@ pub struct Opt {
     /// relative weights assigned to each of the input history data while
     /// merging, sum of weights are normalized to 1.
     #[structopt(short, long, use_delimiter = true)]
-    pub weights: Vec<usize>,
+    pub weights: Vec<u8>,
 
     /// If present, mix history entries while merging.
     #[structopt(short, long)]

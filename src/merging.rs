@@ -6,15 +6,20 @@ const POOL_SIZE: &[usize] = &[128, 8192, 65536];
 #[derive(Debug)]
 struct WeightedHistory<'a> {
     sentences: &'a [Sentence],
-    weight: usize,
+    weight: u8,
 }
 impl<'a> WeightedHistory<'a> {
     fn next_exact(&mut self, size: usize) -> &'a [Sentence] {
         let size = std::cmp::min(size, self.sentences.len());
         log::trace!("Got {} sentences", size);
-        let ret = &self.sentences[..size];
-        self.sentences = &self.sentences[size..];
-        ret
+        match size {
+            0 => &[], // no op
+            _ => {
+                let ret = &self.sentences[..size];
+                self.sentences = &self.sentences[size..];
+                ret
+            }
+        }
     }
 }
 
@@ -34,8 +39,10 @@ fn gen_pool(
             let mut sentences: Vec<Sentence> =
                 Vec::with_capacity(target_size);
 
-            let sum_of_weights: usize =
-                sorted_weighted_histories.iter().map(|x| x.weight).sum();
+            let sum_of_weights: usize = sorted_weighted_histories
+                .iter()
+                .map(|x| x.weight as usize)
+                .sum();
 
             // Iterate untill last entry
             for hist in &mut sorted_weighted_histories[..len - 1] {
@@ -57,12 +64,19 @@ fn gen_pool(
 
             assert!(
                 sentences.len() <= target_size,
-                "Generated vector of length {} but expected length to be less or equal to {}",
+                "Generated vector of length {} but expected length to be less than or equal to {}",
                 sentences.len(),
                 target_size,
             );
             Pool(sentences)
         }
+    }
+}
+
+fn gcd(a: u8, b: u8) -> u8 {
+    match b {
+        0 => a,
+        _ => gcd(b, a % b),
     }
 }
 
@@ -82,48 +96,77 @@ fn gen_pool_mixed(
             let mut sentences: Vec<Sentence> =
                 Vec::with_capacity(target_size);
 
-            let min_weight = sorted_weighted_histories
+            let g = sorted_weighted_histories
                 .iter()
                 .map(|x| x.weight)
-                .min()
+                .reduce(|lhs, rhs| {
+                    gcd(std::cmp::max(lhs, rhs), std::cmp::min(lhs, rhs))
+                })
                 .unwrap();
             let partition: Vec<usize> = sorted_weighted_histories
                 .iter()
-                .map(|x| {
-                    (x.weight as f32 / min_weight as f32).ceil() as usize
-                })
+                .map(|x| (x.weight / g) as usize)
                 .collect();
+
             let chunk_size: usize = partition.iter().sum();
             let whole_chunks: usize =
                 (target_size as f32 / chunk_size as f32) as usize;
 
+            // Push whole chunks
             for _ in 0..whole_chunks {
+                // Mix remainders
                 for (i, part) in partition.iter().enumerate() {
                     sentences.append(
                         &mut sorted_weighted_histories[i]
-                            .next_exact(*part)
+                            .next_exact(*part % (g as usize)) // mod here
                             .to_owned(),
                     );
                 }
+                // Mix quotient
+                for _ in 0..g {
+                    for (i, part) in partition.iter().enumerate() {
+                        sentences.append(
+                            &mut sorted_weighted_histories[i]
+                                .next_exact(*part / (g as usize)) // divide here
+                                .to_owned(),
+                        );
+                    }
+                }
             }
 
-            let mut remaining_size = target_size - sentences.len();
+            // Push remaining partial chunk
+            // Mix remainders
             for (i, part) in partition.iter().enumerate() {
-                let next_size = std::cmp::min(*part, remaining_size);
+                // `next_size` becomes zero when remaining_size is zero
+                let next_size = std::cmp::min(
+                    target_size - sentences.len(),
+                    *part % (g as usize), // mod here
+                );
                 sentences.append(
                     &mut sorted_weighted_histories[i]
                         .next_exact(next_size)
                         .to_owned(),
                 );
-                remaining_size -= next_size;
-                if remaining_size == 0 {
-                    break;
+            }
+            // Mix quotient
+            for _ in 0..g {
+                for (i, part) in partition.iter().enumerate() {
+                    // `next_size` becomes zero when remaining_size is zero
+                    let next_size = std::cmp::min(
+                        target_size - sentences.len(),
+                        *part / (g as usize), // divide here
+                    );
+                    sentences.append(
+                        &mut sorted_weighted_histories[i]
+                            .next_exact(next_size)
+                            .to_owned(),
+                    );
                 }
             }
 
             assert!(
                 sentences.len() <= target_size,
-                "Generated vector of length {} but expected length to be less or equal to {}",
+                "Generated vector of length {} but expected length to be less than or equal to {}",
                 sentences.len(),
                 target_size,
             );
@@ -135,7 +178,7 @@ fn gen_pool_mixed(
 /// Merge given `histories` with corresponding weights.
 pub fn merge(
     histories: Vec<History>,
-    weights: Vec<usize>,
+    weights: Vec<u8>,
     mixed: bool,
 ) -> Result<History> {
     let weights = if weights.is_empty() {
@@ -149,8 +192,10 @@ pub fn merge(
             "Number of weights should match number of histories".to_string(),
         ));
     }
-    if weights.iter().any(|w| *w == 0usize) {
-        return Err(Error::LogicError("Zero weight encountered".to_string()));
+    if weights.iter().any(|w| *w == 0u8) {
+        return Err(Error::LogicError(
+            "Zero weight is not allowed".to_string(),
+        ));
     }
 
     let histories: Vec<Vec<Sentence>> =
