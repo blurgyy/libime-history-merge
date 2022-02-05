@@ -44,7 +44,7 @@ impl<'de> Deserializer<'de> {
     }
 }
 
-pub fn from_bytes<'a, T>(b: &'a Vec<u8>) -> Result<T>
+pub fn from_bytes<'a, T>(b: &'a [u8]) -> Result<T>
 where
     T: Deserialize<'a>,
 {
@@ -385,6 +385,12 @@ impl<'de> Visitor<'de> for StringVisitor {
         E: serde::de::Error,
     {
         Ok(v)
+    }
+    fn visit_str<E>(self, v: &str) -> std::result::Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        Ok(v.to_string())
     }
 }
 

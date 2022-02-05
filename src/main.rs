@@ -1,8 +1,6 @@
-use std::{
-    fs::Permissions, os::unix::prelude::PermissionsExt, path::PathBuf,
-};
+use std::path::PathBuf;
 
-use libime_history_merge::{data::History, merge, to_bytes, Error, Result};
+use libime_history_merge::{data::History, merge, Error, Result};
 use structopt::StructOpt;
 
 /// Inspect/Merge one or more `user.history` files.
@@ -46,9 +44,8 @@ fn setup() -> Opt {
         std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string()),
     );
     pretty_env_logger::init();
-    let opts = Opt::from_args();
 
-    opts
+    Opt::from_args()
 }
 
 fn run() -> Result<()> {
@@ -56,10 +53,8 @@ fn run() -> Result<()> {
 
     let mut histories = vec![opts.user_history_path];
     histories.append(&mut opts.more_paths);
-    let histories: Vec<History> = histories
-        .iter()
-        .map(|hist_path| History::load(hist_path))
-        .collect::<Result<_>>()?;
+    let histories: Vec<History> =
+        histories.iter().map(History::load).collect::<Result<_>>()?;
 
     let merged = merge(histories, opts.weights)?;
 
@@ -70,8 +65,7 @@ fn run() -> Result<()> {
                     "Output path already exists".to_string(),
                 ));
             }
-            std::fs::write(&path, to_bytes(&merged)?)?;
-            std::fs::set_permissions(path, Permissions::from_mode(0o600))?;
+            merged.save(&path)?;
         }
         None => {
             if !opts.no_pager && opts.output.is_none() {
@@ -85,12 +79,9 @@ fn run() -> Result<()> {
 }
 
 fn main() {
-    match run() {
-        Err(e) => {
-            log::error!("{}", e);
-            std::process::exit(1);
-        }
-        Ok(_) => {}
+    if let Err(e) = run() {
+        log::error!("{}", e);
+        std::process::exit(1);
     }
 }
 

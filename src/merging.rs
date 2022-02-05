@@ -25,7 +25,7 @@ impl<'a> WeightedHistory<'a> {
 }
 
 fn gen_mixed_sentences(
-    sorted_weighted_histories: &mut Vec<WeightedHistory>,
+    sorted_weighted_histories: &mut [WeightedHistory],
 ) -> Vec<Sentence> {
     let len = sorted_weighted_histories.len();
     let target_size = POOL_SIZE.iter().sum();
@@ -129,7 +129,7 @@ pub fn merge(histories: Vec<History>, weights: Vec<u8>) -> Result<History> {
     let mut weighted_histories: Vec<WeightedHistory> = Vec::new();
     for (i, hist) in histories.iter().enumerate() {
         weighted_histories.push(WeightedHistory {
-            sentences: &hist,
+            sentences: hist,
             weight: weights[i],
         })
     }

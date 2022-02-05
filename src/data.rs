@@ -1,4 +1,7 @@
-use std::{fmt::Display, path::Path};
+use std::{
+    fmt::Display, fs::Permissions, os::unix::prelude::PermissionsExt,
+    path::Path,
+};
 
 use serde::{
     de::Visitor,
@@ -159,13 +162,15 @@ impl History {
     where
         P: AsRef<Path>,
     {
-        Ok(from_bytes(&std::fs::read(p.as_ref())?)?)
+        from_bytes(&std::fs::read(p.as_ref())?)
     }
     pub fn save<P>(&self, p: P) -> Result<()>
     where
         P: AsRef<Path>,
     {
-        Ok(std::fs::write(p.as_ref(), to_bytes(&self)?)?)
+        std::fs::write(p.as_ref(), to_bytes(&self)?)?;
+        std::fs::set_permissions(p.as_ref(), Permissions::from_mode(0o600))?;
+        Ok(())
     }
 
     /// Get all sentences into one array.
@@ -283,7 +288,7 @@ impl<'de> Deserialize<'de> for History {
             }
         }
 
-        Ok(deserializer.deserialize_struct("", &[""], HistoryVisitor)?)
+        deserializer.deserialize_struct("", &[""], HistoryVisitor)
     }
 }
 
