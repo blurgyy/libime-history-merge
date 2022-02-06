@@ -8,8 +8,8 @@ machines.
 ### Inspect Your History Data
 
 Your fcitx5 pinyin input method history typically resides at
-`~/.local/share/fcitx5/pinyin/user.dict`.  To inspect it, supply the path to
-it to `libime-history-merge`:
+`~/.local/share/fcitx5/pinyin/user.history`.  To inspect it, supply the path
+to it to `libime-history-merge`:
 
 ```shell
 $ libime-history-merge ~/.local/share/fcitx5/pinyin/user.history
