@@ -12,11 +12,13 @@ pub(crate) fn split_vec<T: Clone>(v: Vec<T>, sizes: &[usize]) -> Vec<Vec<T>> {
     for size in sizes {
         let size = std::cmp::min(v.len(), *size);
         if size == 0 {
-            break;
+            log::debug!("appending empty vec");
+            ret.push(Vec::new())
+        } else {
+            log::debug!("appending {}-sized vec", size);
+            ret.push(v[0..size].to_vec());
+            v = v[size..].to_vec();
         }
-        log::debug!("appending {}-sized vec", size);
-        ret.push(v[0..size].to_vec());
-        v = v[size..].to_vec();
     }
 
     ret
