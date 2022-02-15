@@ -1,7 +1,7 @@
 [package]
 name = "libime-history-merge"
 description = "Merge fcitx5 histories from multiple machines"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["Gaoyang Zhang <gy@blurgy.xyz>"]
 license = "LGPL-2.1-or-later"
