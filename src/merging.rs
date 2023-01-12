@@ -12,11 +12,7 @@ struct WeightedHistory<'a> {
 impl<'a> WeightedHistory<'a> {
     fn next_exact(&mut self, size: usize) -> &'a [Sentence] {
         let size = std::cmp::min(size, self.sentences.len());
-        log::trace!(
-            "got {} sentence{}",
-            size,
-            if size == 1 { "" } else { "s" }
-        );
+        log::trace!("got {} sentence{}", size, if size == 1 { "" } else { "s" });
         match size {
             0 => &[], // no op
             _ => {
@@ -41,16 +37,13 @@ fn mix_sentences(
                 .map(|wh| wh.sentences.len())
                 .sum();
 
-            let mut sentences: Vec<Sentence> =
-                Vec::with_capacity(target_size);
+            let mut sentences: Vec<Sentence> = Vec::with_capacity(target_size);
 
             let partition: Vec<usize> = {
                 let g = sorted_weighted_histories
                     .iter()
                     .map(|x| x.weight)
-                    .reduce(|lhs, rhs| {
-                        gcd(std::cmp::max(lhs, rhs), std::cmp::min(lhs, rhs))
-                    })
+                    .reduce(|lhs, rhs| gcd(std::cmp::max(lhs, rhs), std::cmp::min(lhs, rhs)))
                     .unwrap();
                 sorted_weighted_histories
                     .iter()
@@ -76,8 +69,7 @@ fn mix_sentences(
                     if sentences.len() == target_size {
                         break;
                     }
-                    // After pusing, total number of sentences should not
-                    // exceed `target_size`
+                    // After pusing, total number of sentences should not exceed `target_size`
                     let next_size = std::cmp::min(
                         *part % min_part, // mod here
                         target_size - sentences.len(),
@@ -97,8 +89,7 @@ fn mix_sentences(
                         if sentences.len() == target_size {
                             break;
                         }
-                        // After pusing, total number of sentences should not
-                        // exceed `target_size`
+                        // After pusing, total number of sentences should not exceed `target_size`
                         let next_size = std::cmp::min(
                             *part / min_part, // divide here
                             target_size - sentences.len(),
@@ -112,8 +103,7 @@ fn mix_sentences(
                 }
             }
 
-            if sentences.len() == std::cmp::min(target_size, total_input_size)
-            {
+            if sentences.len() == std::cmp::min(target_size, total_input_size) {
                 sentences
             } else {
                 // Did not manage to use all history entries
@@ -141,13 +131,10 @@ pub fn merge(histories: Vec<History>, weights: Vec<u8>) -> Result<History> {
         ));
     }
     if weights.iter().any(|w| *w == 0u8) {
-        return Err(Error::LogicError(
-            "Zero weight is not allowed".to_string(),
-        ));
+        return Err(Error::LogicError("Zero weight is not allowed".to_string()));
     }
 
-    let histories: Vec<Vec<Sentence>> =
-        histories.iter().map(|hist| hist.get_sentences()).collect();
+    let histories: Vec<Vec<Sentence>> = histories.iter().map(|hist| hist.get_sentences()).collect();
 
     let mut weighted_histories: Vec<WeightedHistory> = Vec::new();
     for (i, hist) in histories.iter().enumerate() {
@@ -158,8 +145,7 @@ pub fn merge(histories: Vec<History>, weights: Vec<u8>) -> Result<History> {
     }
 
     // Sort decending by weight
-    weighted_histories
-        .sort_by(|lhs, rhs| rhs.weight.partial_cmp(&lhs.weight).unwrap());
+    weighted_histories.sort_by(|lhs, rhs| rhs.weight.partial_cmp(&lhs.weight).unwrap());
 
     let pools = split_vec(
         mix_sentences(POOL_SIZE.iter().sum(), &mut weighted_histories),

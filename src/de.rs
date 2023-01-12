@@ -191,22 +191,14 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         unimplemented!()
     }
 
-    fn deserialize_unit_struct<V>(
-        self,
-        _name: &'static str,
-        _visitor: V,
-    ) -> Result<V::Value>
+    fn deserialize_unit_struct<V>(self, _name: &'static str, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
         unimplemented!()
     }
 
-    fn deserialize_newtype_struct<V>(
-        self,
-        _name: &'static str,
-        _visitor: V,
-    ) -> Result<V::Value>
+    fn deserialize_newtype_struct<V>(self, _name: &'static str, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -221,11 +213,7 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         visitor.visit_seq(ElementSequence::new(self, seq_len))
     }
 
-    fn deserialize_tuple<V>(
-        self,
-        _len: usize,
-        _visitor: V,
-    ) -> Result<V::Value>
+    fn deserialize_tuple<V>(self, _len: usize, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -357,10 +345,7 @@ impl<'de, 'a> SeqAccess<'de> for ByteSequence<'a, 'de> {
 pub(crate) struct U32Visitor;
 impl<'de> Visitor<'de> for U32Visitor {
     type Value = u32;
-    fn expecting(
-        &self,
-        formatter: &mut std::fmt::Formatter,
-    ) -> std::fmt::Result {
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str("An unsigned 32-bit int")
     }
     fn visit_u32<E>(self, v: u32) -> std::result::Result<u32, E>
@@ -374,10 +359,7 @@ impl<'de> Visitor<'de> for U32Visitor {
 pub(crate) struct StringVisitor;
 impl<'de> Visitor<'de> for StringVisitor {
     type Value = String;
-    fn expecting(
-        &self,
-        formatter: &mut std::fmt::Formatter,
-    ) -> std::fmt::Result {
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str("A UTF-8 encoded string")
     }
     fn visit_string<E>(self, v: String) -> std::result::Result<Self::Value, E>
@@ -407,18 +389,12 @@ where
     ElementType: Deserialize<'de>,
 {
     type Value = Vec<ElementType>;
-    fn expecting(
-        &self,
-        formatter: &mut std::fmt::Formatter,
-    ) -> std::fmt::Result {
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str(
             "A byte array begining with a 4-byte uint32 value `l`, then `l` chunks of data, length of each chunk depends on impl of ElementType",
         )
     }
-    fn visit_seq<A>(
-        self,
-        mut seq: A,
-    ) -> std::result::Result<Self::Value, A::Error>
+    fn visit_seq<A>(self, mut seq: A) -> std::result::Result<Self::Value, A::Error>
     where
         A: serde::de::SeqAccess<'de>,
     {
@@ -453,27 +429,23 @@ mod tests {
     #[test]
     fn sentence() -> Result<()> {
         let sentence_bytes = vec![
-            0, 0, 0, 3, 0, 0, 0, 6, 233, 159, 179, 228, 185, 144, 0, 0, 0, 6,
-            229, 165, 189, 229, 144, 172, 0, 0, 0, 4, 240, 159, 142, 181,
+            0, 0, 0, 3, 0, 0, 0, 6, 233, 159, 179, 228, 185, 144, 0, 0, 0, 6, 229, 165, 189, 229,
+            144, 172, 0, 0, 0, 4, 240, 159, 142, 181,
         ];
         let expected_sentence = Sentence(vec![
             Word("音乐".to_string()),
             Word("好听".to_string()),
             Word("🎵".to_string()),
         ]);
-        assert_eq!(
-            from_bytes::<Sentence>(&sentence_bytes)?,
-            expected_sentence,
-        );
+        assert_eq!(from_bytes::<Sentence>(&sentence_bytes)?, expected_sentence,);
         Ok(())
     }
 
     #[test]
     fn pool() -> Result<()> {
         let pool_bytes = vec![
-            0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 6, 233, 159, 179, 228, 185, 144,
-            0, 0, 0, 4, 240, 159, 142, 181, 0, 0, 0, 6, 229, 165, 189, 229,
-            144, 172,
+            0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 6, 233, 159, 179, 228, 185, 144, 0, 0, 0, 4, 240, 159,
+            142, 181, 0, 0, 0, 6, 229, 165, 189, 229, 144, 172,
         ];
         let expected_pool = Pool(vec![Sentence(vec![
             Word("音乐".to_string()),
@@ -487,15 +459,13 @@ mod tests {
     #[test]
     fn history() -> Result<()> {
         let history_bytes = vec![
-            0x00, 0x0f, 0xc3, 0x15, 0x00, 0x00, 0x00, 0x02, 0, 0, 0, 2, 0, 0,
-            0, 1, 0, 0, 0, 6, 229, 165, 189, 229, 144, 172, 0, 0, 0, 3, 0, 0,
-            0, 4, 240, 159, 142, 181, 0, 0, 0, 6, 233, 159, 179, 228, 185,
-            144, 0, 0, 0, 4, 240, 159, 146, 191, 0, 0, 0, 3, 0, 0, 0, 4, 0,
-            0, 0, 4, 240, 159, 142, 181, 0, 0, 0, 6, 233, 159, 179, 228, 185,
-            144, 0, 0, 0, 4, 240, 159, 146, 191, 0, 0, 0, 6, 229, 165, 189,
-            229, 144, 172, 0, 0, 0, 1, 0, 0, 0, 6, 229, 165, 189, 229, 144,
-            172, 0, 0, 0, 3, 0, 0, 0, 4, 240, 159, 142, 181, 0, 0, 0, 6, 233,
-            159, 179, 228, 185, 144, 0, 0, 0, 4, 240, 159, 146, 191,
+            0x00, 0x0f, 0xc3, 0x15, 0x00, 0x00, 0x00, 0x02, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 6,
+            229, 165, 189, 229, 144, 172, 0, 0, 0, 3, 0, 0, 0, 4, 240, 159, 142, 181, 0, 0, 0, 6,
+            233, 159, 179, 228, 185, 144, 0, 0, 0, 4, 240, 159, 146, 191, 0, 0, 0, 3, 0, 0, 0, 4,
+            0, 0, 0, 4, 240, 159, 142, 181, 0, 0, 0, 6, 233, 159, 179, 228, 185, 144, 0, 0, 0, 4,
+            240, 159, 146, 191, 0, 0, 0, 6, 229, 165, 189, 229, 144, 172, 0, 0, 0, 1, 0, 0, 0, 6,
+            229, 165, 189, 229, 144, 172, 0, 0, 0, 3, 0, 0, 0, 4, 240, 159, 142, 181, 0, 0, 0, 6,
+            233, 159, 179, 228, 185, 144, 0, 0, 0, 4, 240, 159, 146, 191,
         ];
         dbg!(crate::data::MAGIC);
         dbg!(crate::data::FORMAT_VERSION);

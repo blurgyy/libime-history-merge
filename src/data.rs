@@ -1,7 +1,4 @@
-use std::{
-    fmt::Display, fs::Permissions, os::unix::prelude::PermissionsExt,
-    path::Path,
-};
+use std::{fmt::Display, fs::Permissions, os::unix::prelude::PermissionsExt, path::Path};
 
 use serde::{
     de::Visitor,
@@ -20,8 +17,7 @@ pub const FORMAT_VERSION: u32 = 0x02;
 
 #[derive(Clone, Debug, Default, PartialEq, PartialOrd)]
 pub struct Word(
-    /// Use `String` here because it is read from dumped `user.history` so it
-    /// must be valid UTF-8.
+    /// Use `String` here because it is read from dumped `user.history` so it must be valid UTF-8.
     pub String,
 );
 impl Display for Word {
@@ -119,8 +115,7 @@ impl Serialize for Pool {
         S: Serializer,
     {
         let mut ser = serializer.serialize_seq(Some(self.0.len()))?;
-        let oldest_first: Vec<Sentence> =
-            self.0.iter().rev().cloned().collect();
+        let oldest_first: Vec<Sentence> = self.0.iter().rev().cloned().collect();
         for sentence in &oldest_first {
             ser.serialize_element(&sentence)?;
         }
@@ -133,8 +128,7 @@ impl<'de> Deserialize<'de> for Pool {
     where
         D: serde::Deserializer<'de>,
     {
-        let newest_first: Vec<Sentence> = (deserializer
-            .deserialize_seq(SequenceVisitor::new())?
+        let newest_first: Vec<Sentence> = (deserializer.deserialize_seq(SequenceVisitor::new())?
             as Vec<Sentence>)
             .iter()
             .rev()
@@ -175,8 +169,7 @@ impl History {
 
     /// Get all sentences into one array.
     pub fn get_sentences(&self) -> Vec<Sentence> {
-        let mut vvs: Vec<Vec<Sentence>> =
-            self.pools.iter().map(|pool| pool.0.to_owned()).collect();
+        let mut vvs: Vec<Vec<Sentence>> = self.pools.iter().map(|pool| pool.0.to_owned()).collect();
         let mut ret = Vec::new();
         for vs in &mut vvs {
             ret.append(vs)
@@ -235,16 +228,12 @@ impl<'de> Deserialize<'de> for History {
         struct HistoryVisitor;
         impl<'de> Visitor<'de> for HistoryVisitor {
             type Value = History;
-            fn expecting(
-                &self,
-                formatter: &mut std::fmt::Formatter,
-            ) -> std::fmt::Result {
-                formatter.write_str("4 bytes of u32, then another 4 bytes of u32, then an array of pools (bincode)")
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str(
+                    "4 bytes of u32, then another 4 bytes of u32, then an array of pools (bincode)",
+                )
             }
-            fn visit_seq<A>(
-                self,
-                mut seq: A,
-            ) -> std::result::Result<Self::Value, A::Error>
+            fn visit_seq<A>(self, mut seq: A) -> std::result::Result<Self::Value, A::Error>
             where
                 A: serde::de::SeqAccess<'de>,
             {
@@ -253,13 +242,11 @@ impl<'de> Deserialize<'de> for History {
                 for _ in 0..4 {
                     magic_bytes.push(seq.next_element()?.unwrap());
                 }
-                let magic =
-                    u32::from_be_bytes(magic_bytes.try_into().unwrap());
+                let magic = u32::from_be_bytes(magic_bytes.try_into().unwrap());
                 if magic != MAGIC {
                     return Err(serde::de::Error::custom(format!(
                         "Invalid history magic (expected 0x{:08x}, got 0x{:08x})",
-                        MAGIC,
-                        magic,
+                        MAGIC, magic,
                     )));
                 }
 
@@ -267,14 +254,11 @@ impl<'de> Deserialize<'de> for History {
                 for _ in 0..4 {
                     format_version_bytes.push(seq.next_element()?.unwrap());
                 }
-                let format_version = u32::from_be_bytes(
-                    format_version_bytes.try_into().unwrap(),
-                );
+                let format_version = u32::from_be_bytes(format_version_bytes.try_into().unwrap());
                 if format_version != FORMAT_VERSION {
                     return Err(serde::de::Error::custom(format!(
                         "Invalid format version (expected 0x{:08x}, got 0x{:08x})",
-                        FORMAT_VERSION,
-                        format_version,
+                        FORMAT_VERSION, format_version,
                     )));
                 }
 

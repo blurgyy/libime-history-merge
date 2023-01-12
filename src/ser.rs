@@ -28,8 +28,7 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     type SerializeStructVariant = Self;
 
     fn serialize_u32(self, v: u32) -> Result<()> {
-        // The `htonl` method from the Rust crate `socket` contains only 1
-        // line:
+        // The `htonl` method from the Rust crate `socket` contains only 1 line:
         //
         // ```rust
         // pub fn htonl(hostlong: u32) -> u32 {
@@ -37,10 +36,9 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         // }
         // ```
         //
-        // So just convert it into big endian bytes here to avoid introducing
-        // another dependency.
+        // So just convert it into big endian bytes here to avoid introducing another dependency.
         //
-        // Ref: <https://docs.rs/socket/0.0.7/src/socket/lib.rs.html#69-71>
+        // REF: <https://docs.rs/socket/0.0.7/src/socket/lib.rs.html#69-71>
         self.output.append(&mut v.to_be_bytes().into());
         Ok(())
     }
@@ -179,18 +177,11 @@ impl<'a> ser::Serializer for &'a mut Serializer {
         unimplemented!()
     }
 
-    fn serialize_map(
-        self,
-        _len: Option<usize>,
-    ) -> Result<Self::SerializeMap> {
+    fn serialize_map(self, _len: Option<usize>) -> Result<Self::SerializeMap> {
         unimplemented!()
     }
 
-    fn serialize_struct(
-        self,
-        _name: &'static str,
-        _len: usize,
-    ) -> Result<Self::SerializeStruct> {
+    fn serialize_struct(self, _name: &'static str, _len: usize) -> Result<Self::SerializeStruct> {
         Ok(self)
     }
 
@@ -330,11 +321,7 @@ impl<'a> ser::SerializeStruct for &'a mut Serializer {
     type Ok = ();
     type Error = Error;
 
-    fn serialize_field<T: ?Sized>(
-        &mut self,
-        _key: &'static str,
-        value: &T,
-    ) -> Result<()>
+    fn serialize_field<T: ?Sized>(&mut self, _key: &'static str, value: &T) -> Result<()>
     where
         T: Serialize,
     {
@@ -350,11 +337,7 @@ impl<'a> ser::SerializeStructVariant for &'a mut Serializer {
     type Ok = ();
     type Error = Error;
 
-    fn serialize_field<T: ?Sized>(
-        &mut self,
-        _key: &'static str,
-        _value: &T,
-    ) -> Result<()>
+    fn serialize_field<T: ?Sized>(&mut self, _key: &'static str, _value: &T) -> Result<()>
     where
         T: Serialize,
     {
@@ -378,8 +361,7 @@ mod tests {
     #[test]
     fn word() -> Result<()> {
         let word = Word("音乐".to_string());
-        let expected_word_bytes =
-            vec![0, 0, 0, 6, 233, 159, 179, 228, 185, 144];
+        let expected_word_bytes = vec![0, 0, 0, 6, 233, 159, 179, 228, 185, 144];
         assert_eq!(to_bytes(&word)?, expected_word_bytes);
         Ok(())
     }
@@ -392,8 +374,8 @@ mod tests {
             Word("🎵".to_string()),
         ]);
         let expected_sentence_bytes = vec![
-            0, 0, 0, 3, 0, 0, 0, 6, 233, 159, 179, 228, 185, 144, 0, 0, 0, 6,
-            229, 165, 189, 229, 144, 172, 0, 0, 0, 4, 240, 159, 142, 181,
+            0, 0, 0, 3, 0, 0, 0, 6, 233, 159, 179, 228, 185, 144, 0, 0, 0, 6, 229, 165, 189, 229,
+            144, 172, 0, 0, 0, 4, 240, 159, 142, 181,
         ];
         assert_eq!(to_bytes(&sentence)?, expected_sentence_bytes);
         Ok(())
@@ -409,9 +391,8 @@ mod tests {
         let sentence = Sentence(words);
         let pool = Pool(vec![sentence]);
         let expected_pool_bytes = vec![
-            0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 6, 233, 159, 179, 228, 185, 144,
-            0, 0, 0, 4, 240, 159, 142, 181, 0, 0, 0, 6, 229, 165, 189, 229,
-            144, 172,
+            0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 6, 233, 159, 179, 228, 185, 144, 0, 0, 0, 4, 240, 159,
+            142, 181, 0, 0, 0, 6, 229, 165, 189, 229, 144, 172,
         ];
         assert_eq!(to_bytes(&pool)?, expected_pool_bytes);
         Ok(())
@@ -445,15 +426,13 @@ mod tests {
             pools,
         };
         let expected_history_bytes = vec![
-            59, 128, 0, 1, 63, 63, 63, 63, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0,
-            6, 229, 165, 189, 229, 144, 172, 0, 0, 0, 3, 0, 0, 0, 4, 240,
-            159, 142, 181, 0, 0, 0, 6, 233, 159, 179, 228, 185, 144, 0, 0, 0,
-            4, 240, 159, 146, 191, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0, 4, 240,
-            159, 142, 181, 0, 0, 0, 6, 233, 159, 179, 228, 185, 144, 0, 0, 0,
-            4, 240, 159, 146, 191, 0, 0, 0, 6, 229, 165, 189, 229, 144, 172,
-            0, 0, 0, 1, 0, 0, 0, 6, 229, 165, 189, 229, 144, 172, 0, 0, 0, 3,
-            0, 0, 0, 4, 240, 159, 142, 181, 0, 0, 0, 6, 233, 159, 179, 228,
-            185, 144, 0, 0, 0, 4, 240, 159, 146, 191,
+            59, 128, 0, 1, 63, 63, 63, 63, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 6, 229, 165, 189, 229,
+            144, 172, 0, 0, 0, 3, 0, 0, 0, 4, 240, 159, 142, 181, 0, 0, 0, 6, 233, 159, 179, 228,
+            185, 144, 0, 0, 0, 4, 240, 159, 146, 191, 0, 0, 0, 3, 0, 0, 0, 4, 0, 0, 0, 4, 240, 159,
+            142, 181, 0, 0, 0, 6, 233, 159, 179, 228, 185, 144, 0, 0, 0, 4, 240, 159, 146, 191, 0,
+            0, 0, 6, 229, 165, 189, 229, 144, 172, 0, 0, 0, 1, 0, 0, 0, 6, 229, 165, 189, 229, 144,
+            172, 0, 0, 0, 3, 0, 0, 0, 4, 240, 159, 142, 181, 0, 0, 0, 6, 233, 159, 179, 228, 185,
+            144, 0, 0, 0, 4, 240, 159, 146, 191,
         ];
         std::assert_eq!(to_bytes(&history)?, expected_history_bytes);
         Ok(())

@@ -20,15 +20,9 @@ impl Display for Error {
             Error::Message(msg) => f.write_str(msg),
             Error::EofError => f.write_str("Unexpected EOF"),
             Error::IoError(msg) => f.write_str(&format!("IO Error: {}", msg)),
-            Error::LogicError(msg) => {
-                f.write_str(&format!("Logic Error: {}", msg))
-            }
-            Error::SerializeError(msg) => {
-                f.write_str(&format!("Serialize Error: {}", msg))
-            }
-            Error::DeserializeError(msg) => {
-                f.write_str(&format!("Deserialize Error: {}", msg))
-            }
+            Error::LogicError(msg) => f.write_str(&format!("Logic Error: {}", msg)),
+            Error::SerializeError(msg) => f.write_str(&format!("Serialize Error: {}", msg)),
+            Error::DeserializeError(msg) => f.write_str(&format!("Deserialize Error: {}", msg)),
         }
     }
 }
