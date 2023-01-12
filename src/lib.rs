@@ -6,7 +6,7 @@ mod merging;
 mod ser;
 mod utils;
 
-pub use de::{from_bytes, Deserializer};
+pub use de::{from_bytes, BytesDeserializer};
 pub use error::{Error, Result};
 pub use merging::merge;
 pub use ser::{to_bytes, Serializer};
@@ -17,6 +17,7 @@ mod serde_tests {
 
     use crate::{
         data::{History, Pool, Sentence, Word},
+        data::{HistoryFromBytes, PoolFromBytes, SentenceFromBytes, WordFromBytes},
         error::Result,
         from_bytes, to_bytes,
     };
@@ -24,7 +25,10 @@ mod serde_tests {
     #[test]
     fn word() -> Result<()> {
         let word = Word("音乐".to_string());
-        assert_eq!(word, from_bytes(&to_bytes(&word)?)?);
+        assert_eq!(
+            word,
+            Word::from(from_bytes::<WordFromBytes>(&to_bytes(&word)?)?)
+        );
         Ok(())
     }
 
@@ -35,7 +39,10 @@ mod serde_tests {
             Word("好听".to_string()),
             Word("🎵".to_string()),
         ]);
-        assert_eq!(sentence, from_bytes(&to_bytes(&sentence)?)?);
+        assert_eq!(
+            sentence,
+            Sentence::from(from_bytes::<SentenceFromBytes>(&to_bytes(&sentence)?)?)
+        );
         Ok(())
     }
 
@@ -48,7 +55,10 @@ mod serde_tests {
         ];
         let sentence = Sentence(words);
         let pool = Pool(vec![sentence]);
-        assert_eq!(pool, from_bytes(&to_bytes(&pool)?)?);
+        assert_eq!(
+            pool,
+            Pool::from(from_bytes::<PoolFromBytes>(&to_bytes(&pool)?)?)
+        );
         Ok(())
     }
 
@@ -67,7 +77,10 @@ mod serde_tests {
             format_version: crate::data::FORMAT_VERSION,
             pools: vec![pool],
         };
-        assert_eq!(history, from_bytes(&to_bytes(&history)?)?);
+        assert_eq!(
+            history,
+            History::from(from_bytes::<HistoryFromBytes>(&to_bytes(&history)?)?)
+        );
         Ok(())
     }
 }

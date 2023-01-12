@@ -5,13 +5,13 @@ use serde::Deserialize;
 
 use crate::{Error, Result};
 
-pub struct Deserializer<'de> {
+pub struct BytesDeserializer<'de> {
     input: &'de [u8],
 }
 
-impl<'de> Deserializer<'de> {
-    pub fn from_bytes(input: &'de [u8]) -> Self {
-        Deserializer { input }
+impl<'de> BytesDeserializer<'de> {
+    pub fn new(input: &'de [u8]) -> Self {
+        BytesDeserializer { input }
     }
 
     // Parsing helpers
@@ -48,13 +48,13 @@ pub fn from_bytes<'a, T>(b: &'a [u8]) -> Result<T>
 where
     T: Deserialize<'a>,
 {
-    let mut deserer = Deserializer::from_bytes(b);
-    let t = T::deserialize(&mut deserer)?;
+    let mut deserializer = BytesDeserializer::new(b);
+    let t = T::deserialize(&mut deserializer)?;
 
     Ok(t)
 }
 
-impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
+impl<'de, 'a> de::Deserializer<'de> for &'a mut BytesDeserializer<'de> {
     type Error = Error;
 
     fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value>
@@ -280,11 +280,11 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 }
 
 struct ElementSequence<'a, 'de: 'a> {
-    de: &'a mut Deserializer<'de>,
+    de: &'a mut BytesDeserializer<'de>,
     remaining_elems: usize,
 }
 impl<'a, 'de> ElementSequence<'a, 'de> {
-    fn new(de: &'a mut Deserializer<'de>, total_length: usize) -> Self {
+    fn new(de: &'a mut BytesDeserializer<'de>, total_length: usize) -> Self {
         Self {
             de,
             remaining_elems: total_length,
@@ -314,10 +314,10 @@ impl<'de, 'a> SeqAccess<'de> for ElementSequence<'a, 'de> {
 }
 
 struct ByteSequence<'a, 'de: 'a> {
-    de: &'a mut Deserializer<'de>,
+    de: &'a mut BytesDeserializer<'de>,
 }
 impl<'a, 'de> ByteSequence<'a, 'de> {
-    fn new(de: &'a mut Deserializer<'de>) -> Self {
+    fn new(de: &'a mut BytesDeserializer<'de>) -> Self {
         Self { de }
     }
 }
@@ -415,6 +415,7 @@ mod tests {
 
     use crate::{
         data::{History, Pool, Sentence, Word},
+        data::{HistoryFromBytes, PoolFromBytes, SentenceFromBytes, WordFromBytes},
         from_bytes, Result,
     };
 
@@ -422,7 +423,10 @@ mod tests {
     fn word() -> Result<()> {
         let word_bytes = vec![0, 0, 0, 6, 233, 159, 179, 228, 185, 144];
         let expected_word = Word("音乐".to_string());
-        assert_eq!(from_bytes::<Word>(&word_bytes)?, expected_word);
+        assert_eq!(
+            Word::from(from_bytes::<WordFromBytes>(&word_bytes)?),
+            expected_word
+        );
         Ok(())
     }
 
@@ -437,7 +441,10 @@ mod tests {
             Word("好听".to_string()),
             Word("🎵".to_string()),
         ]);
-        assert_eq!(from_bytes::<Sentence>(&sentence_bytes)?, expected_sentence,);
+        assert_eq!(
+            Sentence::from(from_bytes::<SentenceFromBytes>(&sentence_bytes)?),
+            expected_sentence,
+        );
         Ok(())
     }
 
@@ -452,7 +459,10 @@ mod tests {
             Word("🎵".to_string()),
             Word("好听".to_string()),
         ])]);
-        assert_eq!(from_bytes::<Pool>(&pool_bytes)?, expected_pool);
+        assert_eq!(
+            Pool::from(from_bytes::<PoolFromBytes>(&pool_bytes)?),
+            expected_pool
+        );
         Ok(())
     }
 
@@ -497,7 +507,10 @@ mod tests {
                 ]),
             ],
         };
-        assert_eq!(from_bytes::<History>(&history_bytes)?, expected_history);
+        assert_eq!(
+            History::from(from_bytes::<HistoryFromBytes>(&history_bytes)?),
+            expected_history
+        );
         Ok(())
     }
 }

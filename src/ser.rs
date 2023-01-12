@@ -10,9 +10,9 @@ pub fn to_bytes<T>(value: &T) -> Result<Vec<u8>>
 where
     T: Serialize,
 {
-    let mut serer = Serializer { output: Vec::new() };
-    value.serialize(&mut serer)?;
-    Ok(serer.output)
+    let mut serializer = Serializer { output: Vec::new() };
+    value.serialize(&mut serializer)?;
+    Ok(serializer.output)
 }
 
 impl<'a> ser::Serializer for &'a mut Serializer {

@@ -20,6 +20,11 @@ pub struct Word(
     /// Use `String` here because it is read from dumped `user.history` so it must be valid UTF-8.
     pub String,
 );
+impl From<WordFromBytes> for Word {
+    fn from(wfb: WordFromBytes) -> Self {
+        Word(wfb.0.clone())
+    }
+}
 impl Display for Word {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.0)
@@ -38,17 +43,29 @@ impl Serialize for Word {
     }
 }
 
-impl<'de> Deserialize<'de> for Word {
+#[derive(Clone, Debug, Default, PartialEq, PartialOrd)]
+pub struct WordFromBytes(
+    /// Use `String` here because it is read from dumped `user.history` so it must be valid UTF-8.
+    pub String,
+);
+impl<'de> Deserialize<'de> for WordFromBytes {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        Ok(Word(deserializer.deserialize_string(StringVisitor)?))
+        Ok(WordFromBytes(
+            deserializer.deserialize_string(StringVisitor)?,
+        ))
     }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, PartialOrd)]
 pub struct Sentence(pub Vec<Word>);
+impl From<SentenceFromBytes> for Sentence {
+    fn from(sfb: SentenceFromBytes) -> Self {
+        Self(sfb.0.into_iter().map(Word::from).collect())
+    }
+}
 impl Display for Sentence {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(
@@ -79,12 +96,14 @@ impl Serialize for Sentence {
     }
 }
 
-impl<'de> Deserialize<'de> for Sentence {
+#[derive(Clone, Debug, Default, PartialEq, PartialOrd)]
+pub struct SentenceFromBytes(pub Vec<WordFromBytes>);
+impl<'de> Deserialize<'de> for SentenceFromBytes {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        Ok(Sentence(
+        Ok(SentenceFromBytes(
             deserializer.deserialize_seq(SequenceVisitor::new())?,
         ))
     }
@@ -92,6 +111,11 @@ impl<'de> Deserialize<'de> for Sentence {
 
 #[derive(Clone, Debug, Default, PartialEq, PartialOrd)]
 pub struct Pool(pub Vec<Sentence>);
+impl From<PoolFromBytes> for Pool {
+    fn from(pfb: PoolFromBytes) -> Self {
+        Pool(pfb.0.into_iter().map(Sentence::from).collect())
+    }
+}
 impl Display for Pool {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(
@@ -123,18 +147,20 @@ impl Serialize for Pool {
     }
 }
 
-impl<'de> Deserialize<'de> for Pool {
+#[derive(Clone, Debug, Default, PartialEq, PartialOrd)]
+pub struct PoolFromBytes(pub Vec<SentenceFromBytes>);
+impl<'de> Deserialize<'de> for PoolFromBytes {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        let newest_first: Vec<Sentence> = (deserializer.deserialize_seq(SequenceVisitor::new())?
-            as Vec<Sentence>)
-            .iter()
-            .rev()
-            .cloned()
-            .collect();
-        Ok(Pool(newest_first))
+        let newest_first: Vec<SentenceFromBytes> =
+            (deserializer.deserialize_seq(SequenceVisitor::new())? as Vec<SentenceFromBytes>)
+                .iter()
+                .rev()
+                .cloned()
+                .collect();
+        Ok(PoolFromBytes(newest_first))
     }
 }
 
@@ -144,6 +170,15 @@ pub struct History {
     pub format_version: u32,
     pub pools: Vec<Pool>,
 }
+impl From<HistoryFromBytes> for History {
+    fn from(hfb: HistoryFromBytes) -> Self {
+        History {
+            magic: hfb.magic,
+            format_version: hfb.format_version,
+            pools: hfb.pools.into_iter().map(Pool::from).collect(),
+        }
+    }
+}
 impl History {
     pub fn new(pools: Vec<Pool>) -> Self {
         History {
@@ -152,11 +187,12 @@ impl History {
             pools,
         }
     }
-    pub fn load<P>(p: P) -> Result<Self>
+    pub fn load_from_bytes<P>(p: P) -> Result<Self>
     where
         P: AsRef<Path>,
     {
-        from_bytes(&std::fs::read(p.as_ref())?)
+        let ret: HistoryFromBytes = from_bytes(&std::fs::read(p.as_ref())?)?;
+        Ok(History::from(ret))
     }
     pub fn save<P>(&self, p: P) -> Result<()>
     where
@@ -220,14 +256,20 @@ impl Serialize for History {
     }
 }
 
-impl<'de> Deserialize<'de> for History {
+#[derive(Clone, Debug, PartialEq, PartialOrd)]
+pub struct HistoryFromBytes {
+    pub magic: u32,
+    pub format_version: u32,
+    pub pools: Vec<PoolFromBytes>,
+}
+impl<'de> Deserialize<'de> for HistoryFromBytes {
     fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
         struct HistoryVisitor;
         impl<'de> Visitor<'de> for HistoryVisitor {
-            type Value = History;
+            type Value = HistoryFromBytes;
             fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                 formatter.write_str(
                     "4 bytes of u32, then another 4 bytes of u32, then an array of pools (bincode)",
@@ -264,7 +306,7 @@ impl<'de> Deserialize<'de> for History {
 
                 let pools = SequenceVisitor::new().visit_seq(seq)?;
 
-                Ok(History {
+                Ok(HistoryFromBytes {
                     magic,
                     format_version,
                     pools,
