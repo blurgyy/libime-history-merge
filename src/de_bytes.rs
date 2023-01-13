@@ -8,6 +8,7 @@ use crate::{Error, Result};
 pub struct BytesDeserializer<'de> {
     input: &'de [u8],
 }
+
 impl<'de> BytesDeserializer<'de> {
     pub fn new(input: &'de [u8]) -> Self {
         Self { input }

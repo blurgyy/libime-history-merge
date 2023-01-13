@@ -59,6 +59,16 @@ impl<'de> TextDeserializer<'de> {
     }
 }
 
+pub fn from_text<'de, T>(b: &'de [u8]) -> Result<T>
+where
+    T: Deserialize<'de>,
+{
+    let mut deserializer = TextDeserializer::new(b);
+    let t = T::deserialize(&mut deserializer)?;
+
+    Ok(t)
+}
+
 impl<'de, 'a> Deserializer<'de> for &'a mut TextDeserializer<'de> {
     type Error = Error;
 
@@ -351,5 +361,47 @@ where
                 None => break Ok(ret),
             };
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+
+    use crate::{
+        data::{Sentence, Word},
+        data_text::{SentenceFromText, WordFromText},
+        from_text, Result,
+    };
+
+    #[test]
+    fn word() -> Result<()> {
+        let word_str = "音乐\n";
+        let word_text = word_str.as_bytes();
+        let expected_word = Word(word_str.trim_end().to_string());
+        assert_eq!(
+            Word::from(from_text::<WordFromText>(word_text)?),
+            expected_word
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn sentence() -> Result<()> {
+        let sentence_str = "音乐 好听\n";
+        let sentence_text = sentence_str.as_bytes();
+        let expected_sentence = Sentence(
+            sentence_str
+                .trim_end()
+                .split(' ')
+                .map(String::from)
+                .map(Word)
+                .collect(),
+        );
+        assert_eq!(
+            Sentence::from(from_text::<SentenceFromText>(sentence_text)?),
+            expected_sentence,
+        );
+        Ok(())
     }
 }
