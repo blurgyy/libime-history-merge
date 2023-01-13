@@ -1,5 +1,5 @@
 {
-  description = "Merge fcitx5 histories from multiple machines";
+  description = "A simple CLI for inspecting, merging and editing libime pinyin histories from multiple machines.";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
@@ -26,7 +26,7 @@
         cargoLock.lockFile = ./Cargo.lock;
         meta = {
           homepage = "https://github.com/blurgyy/libime-history-merge";
-          description = "Merge fcitx5 histories from multiple machines";
+          description = "A simple CLI for inspecting, merging and editing libime pinyin histories from multiple machines.";
           license = lib.licenses.lgpl21;
         };
       };
