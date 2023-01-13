@@ -1,6 +1,6 @@
 [package]
 name = "libime-history-merge"
-description = "Merge fcitx5 histories from multiple machines"
+description = "A simple CLI for inspecting, merging and editing libime pinyin histories from multiple machines."
 version = "0.3.0"
 edition = "2021"
 authors = ["Gaoyang Zhang <gy@blurgy.xyz>"]
