@@ -1,12 +1,17 @@
 pub mod data;
+pub mod data_bytes;
+pub mod data_text;
 
 mod de;
+mod de_bytes;
+mod de_text;
 mod error;
 mod merging;
 mod ser;
 mod utils;
 
-pub use de::{from_bytes, BytesDeserializer};
+pub use de_bytes::{from_bytes, BytesDeserializer};
+pub use de_text::TextDeserializer;
 pub use error::{Error, Result};
 pub use merging::merge;
 pub use ser::{to_bytes, Serializer};
@@ -17,7 +22,7 @@ mod serde_tests {
 
     use crate::{
         data::{History, Pool, Sentence, Word},
-        data::{HistoryFromBytes, PoolFromBytes, SentenceFromBytes, WordFromBytes},
+        data_bytes::{HistoryFromBytes, PoolFromBytes, SentenceFromBytes, WordFromBytes},
         error::Result,
         from_bytes, to_bytes,
     };
@@ -73,8 +78,8 @@ mod serde_tests {
         let sentence = Sentence(words);
         let pool = Pool(vec![sentence]);
         let history = History {
-            magic: crate::data::MAGIC,
-            format_version: crate::data::FORMAT_VERSION,
+            magic: crate::data_bytes::MAGIC,
+            format_version: crate::data_bytes::FORMAT_VERSION,
             pools: vec![pool],
         };
         assert_eq!(

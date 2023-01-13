@@ -2,6 +2,13 @@ use crate::data::{History, Pool, Sentence};
 use crate::utils::{gcd, split_vec};
 use crate::{Error, Result};
 
+/// [`libime`][libime] saves the most recent 73856 sentence entries in the history file, where
+/// entries are splitted into 3 pools with sizes 128, 8192, 65536, from newest to oldest,
+/// respectively.
+///
+/// REF: <https://github.com/fcitx/libime/blob/2e90224d4905c9228c4008bca52155829d673532/src/libime/core/historybigram.cpp#L392-L396>
+///
+/// [libime]: https://github.com/fcitx/libime
 const POOL_SIZE: &[usize] = &[128, 8192, 65536];
 
 #[derive(Debug)]

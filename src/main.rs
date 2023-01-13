@@ -51,10 +51,7 @@ fn run() -> Result<()> {
 
     let mut histories = vec![opts.user_history_path];
     histories.append(&mut opts.more_paths);
-    let histories: Vec<History> = histories
-        .iter()
-        .map(History::load_from_bytes)
-        .collect::<Result<_>>()?;
+    let histories: Vec<History> = histories.iter().map(History::load).collect::<Result<_>>()?;
 
     let merged = merge(histories, opts.weights)?;
 
