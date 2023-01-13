@@ -72,11 +72,11 @@ fn run() -> Result<()> {
             merged.save(&path)?;
         }
         None => {
-            let merged = if opts.edit {
-                History::load_from_text(edit::edit(merged.to_string())?.as_bytes())?
-            } else {
-                merged
-            };
+            if opts.edit {
+                return Err(Error::LogicError(
+                    "-o|--output is not specified, the edited history will be lost".to_string(),
+                ));
+            }
             if !opts.no_pager && opts.output.is_none() {
                 pager::Pager::with_default_pager("less").setup();
             }
