@@ -42,7 +42,7 @@ $
 $ # Show the history content in plain text
 $ cat history.txt
 $
-$ # Compile the plain-text history back to the binary form and save as ./history.bin
+$ # Compile the plain-text history back to the binary form and save as ./compiled.history
 $ libime-history-merge history.txt -o compiled.history
 $
 $ # Check integrity
