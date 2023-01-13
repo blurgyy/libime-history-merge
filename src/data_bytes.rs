@@ -32,7 +32,7 @@ impl History {
     /// [libime]: <https://github.com/fcitx/libme>
     /// [endianness-wiki]: <https://en.wikipedia.org/wiki/Endianness>
     /// [nibble-wiki]: <https://en.wikipedia.org/wiki/Nibble>
-    pub(crate) fn load_from_bytes(content: &[u8]) -> Result<Self> {
+    pub fn load_from_bytes(content: &[u8]) -> Result<Self> {
         let ret: HistoryFromBytes = from_bytes(content)?;
         Ok(History::from(ret))
     }

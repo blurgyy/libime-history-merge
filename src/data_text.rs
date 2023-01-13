@@ -11,7 +11,7 @@ use crate::{
 impl History {
     /// Load a history object from a newline-separated text buffer.  Each line should be a
     /// space-separated collection of words.  Empty lines are ignored.
-    pub(crate) fn load_from_text(content: &[u8]) -> Result<Self> {
+    pub fn load_from_text(content: &[u8]) -> Result<Self> {
         let mut deserializer = TextDeserializer::new(content);
         let mut sentences: Vec<SentenceFromText> = Vec::new();
         while !deserializer.ended() {

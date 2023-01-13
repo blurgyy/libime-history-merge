@@ -25,8 +25,12 @@ pub struct Opt {
     #[structopt(short, long)]
     pub output: Option<PathBuf>,
 
+    /// If present, let the user edit the output history.
+    #[structopt(short, long)]
+    pub edit: bool,
+
     /// If present, do not invoke a pager (pager defaults to the environment variable $PAGER's
-    /// value)
+    /// value).
     #[structopt(short, long)]
     pub no_pager: bool,
 }
@@ -60,9 +64,19 @@ fn run() -> Result<()> {
             if path.exists() {
                 return Err(Error::IoError("Output path already exists".to_string()));
             }
+            let merged = if opts.edit {
+                History::load_from_text(edit::edit(merged.to_string())?.as_bytes())?
+            } else {
+                merged
+            };
             merged.save(&path)?;
         }
         None => {
+            let merged = if opts.edit {
+                History::load_from_text(edit::edit(merged.to_string())?.as_bytes())?
+            } else {
+                merged
+            };
             if !opts.no_pager && opts.output.is_none() {
                 pager::Pager::with_default_pager("less").setup();
             }
