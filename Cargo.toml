@@ -10,6 +10,7 @@ categories = ["command-line-utilities"]
 keywords = ["fcitx5", "libime", "serde"]
 
 [dependencies]
+edit = "0.1.4"
 libc = "0.2.117"
 log = "0.4.14"
 pager = "0.16.0"

@@ -1,25 +1,28 @@
 use std::{fmt::Display, fs::Permissions, os::unix::prelude::PermissionsExt, path::Path};
 
 use serde::{
-    de::Visitor,
     ser::{SerializeSeq, SerializeStruct},
-    Deserialize, Serialize, Serializer,
+    Serialize, Serializer,
 };
 
 use crate::{
-    de::{SequenceVisitor, StringVisitor},
-    error::Result,
-    from_bytes, to_bytes,
+    data_bytes::{FORMAT_VERSION, MAGIC},
+    to_bytes, Error, Result,
 };
-
-pub const MAGIC: u32 = 0x000FC315;
-pub const FORMAT_VERSION: u32 = 0x02;
 
 #[derive(Clone, Debug, Default, PartialEq, PartialOrd)]
 pub struct Word(
     /// Use `String` here because it is read from dumped `user.history` so it must be valid UTF-8.
     pub String,
 );
+
+impl Word {
+    /// Checks if this word is an empty string
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
 impl Display for Word {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.0)
@@ -38,17 +41,16 @@ impl Serialize for Word {
     }
 }
 
-impl<'de> Deserialize<'de> for Word {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        Ok(Word(deserializer.deserialize_string(StringVisitor)?))
+#[derive(Clone, Debug, Default, PartialEq, PartialOrd)]
+pub struct Sentence(pub Vec<Word>);
+
+impl Sentence {
+    /// Checks if all words inside this sentence are empty words
+    pub fn is_empty(&self) -> bool {
+        self.0.iter().all(Word::is_empty)
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, PartialOrd)]
-pub struct Sentence(pub Vec<Word>);
 impl Display for Sentence {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(
@@ -79,19 +81,9 @@ impl Serialize for Sentence {
     }
 }
 
-impl<'de> Deserialize<'de> for Sentence {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        Ok(Sentence(
-            deserializer.deserialize_seq(SequenceVisitor::new())?,
-        ))
-    }
-}
-
 #[derive(Clone, Debug, Default, PartialEq, PartialOrd)]
 pub struct Pool(pub Vec<Sentence>);
+
 impl Display for Pool {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(
@@ -123,27 +115,13 @@ impl Serialize for Pool {
     }
 }
 
-impl<'de> Deserialize<'de> for Pool {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let newest_first: Vec<Sentence> = (deserializer.deserialize_seq(SequenceVisitor::new())?
-            as Vec<Sentence>)
-            .iter()
-            .rev()
-            .cloned()
-            .collect();
-        Ok(Pool(newest_first))
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, PartialOrd)]
 pub struct History {
     pub magic: u32,
     pub format_version: u32,
     pub pools: Vec<Pool>,
 }
+
 impl History {
     pub fn new(pools: Vec<Pool>) -> Self {
         History {
@@ -152,12 +130,7 @@ impl History {
             pools,
         }
     }
-    pub fn load<P>(p: P) -> Result<Self>
-    where
-        P: AsRef<Path>,
-    {
-        from_bytes(&std::fs::read(p.as_ref())?)
-    }
+
     pub fn save<P>(&self, p: P) -> Result<()>
     where
         P: AsRef<Path>,
@@ -167,7 +140,24 @@ impl History {
         Ok(())
     }
 
-    /// Get all sentences into one array.
+    pub fn load<P>(p: P) -> Result<Self>
+    where
+        P: AsRef<Path>,
+    {
+        let content = std::fs::read(&p)?;
+        match History::load_from_bytes(&content) {
+            Ok(hist) => Ok(hist),
+            _ => match History::load_from_text(&content) {
+                Ok(hist) => Ok(hist),
+                _ => Err(Error::DeserializeError(format!(
+                    "Could not load history from path '{}', tried binary and plain text",
+                    p.as_ref().display(),
+                ))),
+            },
+        }
+    }
+
+    /// Collects all sentences into one array.
     pub fn get_sentences(&self) -> Vec<Sentence> {
         let mut vvs: Vec<Vec<Sentence>> = self.pools.iter().map(|pool| pool.0.to_owned()).collect();
         let mut ret = Vec::new();
@@ -177,6 +167,7 @@ impl History {
         ret
     }
 }
+
 impl Default for History {
     fn default() -> Self {
         History {
@@ -188,6 +179,7 @@ impl Default for History {
         }
     }
 }
+
 impl Display for History {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(
@@ -219,62 +211,3 @@ impl Serialize for History {
         ser.end()
     }
 }
-
-impl<'de> Deserialize<'de> for History {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        struct HistoryVisitor;
-        impl<'de> Visitor<'de> for HistoryVisitor {
-            type Value = History;
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str(
-                    "4 bytes of u32, then another 4 bytes of u32, then an array of pools (bincode)",
-                )
-            }
-            fn visit_seq<A>(self, mut seq: A) -> std::result::Result<Self::Value, A::Error>
-            where
-                A: serde::de::SeqAccess<'de>,
-            {
-                // Load magic bytes
-                let mut magic_bytes: Vec<u8> = Vec::new();
-                for _ in 0..4 {
-                    magic_bytes.push(seq.next_element()?.unwrap());
-                }
-                let magic = u32::from_be_bytes(magic_bytes.try_into().unwrap());
-                if magic != MAGIC {
-                    return Err(serde::de::Error::custom(format!(
-                        "Invalid history magic (expected 0x{:08x}, got 0x{:08x})",
-                        MAGIC, magic,
-                    )));
-                }
-
-                let mut format_version_bytes: Vec<u8> = Vec::new();
-                for _ in 0..4 {
-                    format_version_bytes.push(seq.next_element()?.unwrap());
-                }
-                let format_version = u32::from_be_bytes(format_version_bytes.try_into().unwrap());
-                if format_version != FORMAT_VERSION {
-                    return Err(serde::de::Error::custom(format!(
-                        "Invalid format version (expected 0x{:08x}, got 0x{:08x})",
-                        FORMAT_VERSION, format_version,
-                    )));
-                }
-
-                let pools = SequenceVisitor::new().visit_seq(seq)?;
-
-                Ok(History {
-                    magic,
-                    format_version,
-                    pools,
-                })
-            }
-        }
-
-        deserializer.deserialize_struct("", &[""], HistoryVisitor)
-    }
-}
-
-// Author: Blurgy <gy@blurgy.xyz>
-// Date:   Feb 03 2022, 11:45 [CST]
