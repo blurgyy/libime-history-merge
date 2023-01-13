@@ -41,14 +41,15 @@ impl<'de> TextDeserializer<'de> {
     /// Consumes until one of `candidate_chars` is occurred in input and return the visited bytes
     pub fn pop_until(&mut self, candidate_chars: &[u8]) -> Result<&[u8]> {
         let mut len: usize = 0;
-        loop {
+        while len < self.input.len() {
             if candidate_chars.iter().any(|ch| ch == &self.input[len]) {
-                let slce = &self.input[..len];
-                self.input = &self.input[len..];
-                break Ok(slce);
+                break;
             }
             len += 1;
         }
+        let slce = &self.input[..len];
+        self.input = &self.input[len..];
+        Ok(slce)
     }
 
     /// Load next word, words are delimetered by space or new line character
