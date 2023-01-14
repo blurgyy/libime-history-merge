@@ -9,10 +9,10 @@ use structopt::StructOpt;
     global_settings(&[structopt::clap::AppSettings::ColoredHelp]),
 )]
 pub struct Opt {
-    /// Path to a binary `user.history` file.
+    /// Path to a history file, in binary or in plain-text.
     pub user_history_path: PathBuf,
 
-    /// More `user.history` files.
+    /// More history files.
     pub more_paths: Vec<PathBuf>,
 
     /// A list of integer values (e.g. "-w3,5" or "-w 4 1"), represents relative weights assigned
