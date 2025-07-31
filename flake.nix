@@ -37,7 +37,7 @@
         devShells = rec {
           default = libime-history-merge;
           libime-history-merge = pkgs.mkShell {
-            buildInputs = with pkgs; [
+            nativeBuildInputs = with pkgs; [
               rustc
               cargo
               cargo-edit
