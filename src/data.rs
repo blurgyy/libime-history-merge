@@ -6,7 +6,7 @@ use serde::{
 };
 
 use crate::{
-    data_bytes::{FORMAT_VERSION, MAGIC},
+    data_bytes::{FORMAT_VERSION_OLD, MAGIC},
     to_bytes, Error, Result,
 };
 
@@ -126,7 +126,7 @@ impl History {
     pub fn new(pools: Vec<Pool>) -> Self {
         History {
             magic: MAGIC,
-            format_version: FORMAT_VERSION,
+            format_version: FORMAT_VERSION_OLD,
             pools,
         }
     }
@@ -172,7 +172,7 @@ impl Default for History {
     fn default() -> Self {
         History {
             magic: MAGIC,
-            format_version: FORMAT_VERSION,
+            format_version: FORMAT_VERSION_OLD,
             pools: vec![Pool::default(); 3], /* 3 pools from current
                                               * version of libime's saved
                                               * history data */

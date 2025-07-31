@@ -439,7 +439,7 @@ mod tests {
     }
 
     #[test]
-    fn history() -> Result<()> {
+    fn history_v2() -> Result<()> {
         let history_bytes = vec![
             0x00, 0x0f, 0xc3, 0x15, 0x00, 0x00, 0x00, 0x02, 0, 0, 0, 2, 0, 0, 0, 1, 0, 0, 0, 6,
             229, 165, 189, 229, 144, 172, 0, 0, 0, 3, 0, 0, 0, 4, 240, 159, 142, 181, 0, 0, 0, 6,
@@ -451,7 +451,7 @@ mod tests {
         ];
         let expected_history = History {
             magic: crate::data_bytes::MAGIC,
-            format_version: crate::data_bytes::FORMAT_VERSION,
+            format_version: crate::data_bytes::FORMAT_VERSION_OLD,
             pools: vec![
                 Pool(vec![
                     Sentence(vec![
@@ -482,6 +482,148 @@ mod tests {
             expected_history
         );
         Ok(())
+    }
+
+    #[test]
+    fn history_v3_zstd() -> Result<()> {
+        // Create a simple, well-defined pool structure for v3 format testing
+        let pool_data = vec![
+            // Pool 1: 1 sentence with 1 word "好听"
+            0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 6, 229, 165, 189, 229, 144, 172,
+            // Pool 2: 1 sentence with 2 words "音乐", "🎵"
+            0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 6, 233, 159, 179, 228, 185, 144, 0, 0, 0, 4, 240, 159,
+            142, 181, // Pool 3: 0 sentences
+            0, 0, 0, 0,
+        ];
+
+        // Compress the pool data with ZSTD
+        let compressed_data = zstd::encode_all(&pool_data[..], 3)?;
+
+        // Build v3 format: magic + version + compressed data
+        let mut history_bytes = Vec::new();
+        history_bytes.extend_from_slice(&crate::data_bytes::MAGIC.to_be_bytes());
+        history_bytes.extend_from_slice(&crate::data_bytes::FORMAT_VERSION_NEW.to_be_bytes());
+        history_bytes.extend_from_slice(&compressed_data);
+
+        let expected_history = History {
+            magic: crate::data_bytes::MAGIC,
+            format_version: crate::data_bytes::FORMAT_VERSION_NEW,
+            pools: vec![
+                Pool(vec![Sentence(vec![Word("好听".to_string())])]),
+                Pool(vec![Sentence(vec![
+                    Word("音乐".to_string()),
+                    Word("🎵".to_string()),
+                ])]),
+                Pool(vec![]),
+            ],
+        };
+
+        let parsed_history = History::from(from_bytes::<HistoryFromBytes>(&history_bytes)?);
+        assert_eq!(parsed_history, expected_history);
+        Ok(())
+    }
+
+    #[test]
+    fn history_v3_empty_pools() -> Result<()> {
+        // Test v3 format with empty pools
+        let pool_data = vec![
+            0, 0, 0, 0, // First pool: 0 sentences
+            0, 0, 0, 0, // Second pool: 0 sentences
+            0, 0, 0, 0, // Third pool: 0 sentences
+        ];
+
+        let compressed_data = zstd::encode_all(&pool_data[..], 3)?;
+
+        let mut history_bytes = Vec::new();
+        history_bytes.extend_from_slice(&crate::data_bytes::MAGIC.to_be_bytes());
+        history_bytes.extend_from_slice(&crate::data_bytes::FORMAT_VERSION_NEW.to_be_bytes());
+        history_bytes.extend_from_slice(&compressed_data);
+
+        let expected_history = History {
+            magic: crate::data_bytes::MAGIC,
+            format_version: crate::data_bytes::FORMAT_VERSION_NEW,
+            pools: vec![Pool(vec![]), Pool(vec![]), Pool(vec![])],
+        };
+
+        let parsed_history = History::from(from_bytes::<HistoryFromBytes>(&history_bytes)?);
+        assert_eq!(parsed_history, expected_history);
+        Ok(())
+    }
+
+    #[test]
+    fn history_v3_corrupted_zstd() {
+        // Test error handling for corrupted ZSTD data
+        let mut history_bytes = Vec::new();
+        history_bytes.extend_from_slice(&crate::data_bytes::MAGIC.to_be_bytes());
+        history_bytes.extend_from_slice(&crate::data_bytes::FORMAT_VERSION_NEW.to_be_bytes());
+        history_bytes.extend_from_slice(&[0xFF, 0xFF, 0xFF, 0xFF]); // Invalid ZSTD data
+
+        let result = from_bytes::<HistoryFromBytes>(&history_bytes);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn history_v3_insufficient_data() {
+        // Test error handling when there's not enough data after decompression
+        let pool_data = vec![0, 0, 0]; // Incomplete data
+        let compressed_data = zstd::encode_all(&pool_data[..], 3).unwrap();
+
+        let mut history_bytes = Vec::new();
+        history_bytes.extend_from_slice(&crate::data_bytes::MAGIC.to_be_bytes());
+        history_bytes.extend_from_slice(&crate::data_bytes::FORMAT_VERSION_NEW.to_be_bytes());
+        history_bytes.extend_from_slice(&compressed_data);
+
+        let result = from_bytes::<HistoryFromBytes>(&history_bytes);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn history_v3_vs_v2_equivalence() -> Result<()> {
+        // Test that the same pool data produces equivalent results in both formats
+        let pool_data = vec![
+            0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 6, 229, 165, 189, 229, 144,
+            172, // Pool 1: 1 sentence with 1 word "好听"
+            0, 0, 0, 0, // Pool 2: 0 sentences
+            0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 6, 233, 159, 179, 228, 185, 144, 0, 0, 0, 4, 240, 159,
+            142, 181, // Pool 3: 1 sentence with 2 words "音乐", "🎵"
+        ];
+
+        // Build v2 format
+        let mut v2_bytes = Vec::new();
+        v2_bytes.extend_from_slice(&crate::data_bytes::MAGIC.to_be_bytes());
+        v2_bytes.extend_from_slice(&crate::data_bytes::FORMAT_VERSION_OLD.to_be_bytes());
+        v2_bytes.extend_from_slice(&pool_data);
+
+        // Build v3 format
+        let compressed_data = zstd::encode_all(&pool_data[..], 3)?;
+        let mut v3_bytes = Vec::new();
+        v3_bytes.extend_from_slice(&crate::data_bytes::MAGIC.to_be_bytes());
+        v3_bytes.extend_from_slice(&crate::data_bytes::FORMAT_VERSION_NEW.to_be_bytes());
+        v3_bytes.extend_from_slice(&compressed_data);
+
+        let v2_history = History::from(from_bytes::<HistoryFromBytes>(&v2_bytes)?);
+        let v3_history = History::from(from_bytes::<HistoryFromBytes>(&v3_bytes)?);
+
+        // They should have the same pools data
+        assert_eq!(v2_history.pools, v3_history.pools);
+
+        // But different format versions
+        assert_eq!(
+            v2_history.format_version,
+            crate::data_bytes::FORMAT_VERSION_OLD
+        );
+        assert_eq!(
+            v3_history.format_version,
+            crate::data_bytes::FORMAT_VERSION_NEW
+        );
+
+        Ok(())
+    }
+
+    // Maintain the original test name for backwards compatibility
+    #[test]
+    fn history() -> Result<()> {
+        history_v2()
     }
 }
 
