@@ -451,7 +451,7 @@ mod tests {
         ];
         let expected_history = History {
             magic: crate::data_bytes::MAGIC,
-            format_version: crate::data_bytes::FORMAT_VERSION_OLD,
+            format_version: crate::data_bytes::FORMAT_VERSION_V2,
             pools: vec![
                 Pool(vec![
                     Sentence(vec![
@@ -502,12 +502,12 @@ mod tests {
         // Build v3 format: magic + version + compressed data
         let mut history_bytes = Vec::new();
         history_bytes.extend_from_slice(&crate::data_bytes::MAGIC.to_be_bytes());
-        history_bytes.extend_from_slice(&crate::data_bytes::FORMAT_VERSION_NEW.to_be_bytes());
+        history_bytes.extend_from_slice(&crate::data_bytes::FORMAT_VERSION_V3.to_be_bytes());
         history_bytes.extend_from_slice(&compressed_data);
 
         let expected_history = History {
             magic: crate::data_bytes::MAGIC,
-            format_version: crate::data_bytes::FORMAT_VERSION_NEW,
+            format_version: crate::data_bytes::FORMAT_VERSION_V3,
             pools: vec![
                 Pool(vec![Sentence(vec![Word("好听".to_string())])]),
                 Pool(vec![Sentence(vec![
@@ -536,12 +536,12 @@ mod tests {
 
         let mut history_bytes = Vec::new();
         history_bytes.extend_from_slice(&crate::data_bytes::MAGIC.to_be_bytes());
-        history_bytes.extend_from_slice(&crate::data_bytes::FORMAT_VERSION_NEW.to_be_bytes());
+        history_bytes.extend_from_slice(&crate::data_bytes::FORMAT_VERSION_V3.to_be_bytes());
         history_bytes.extend_from_slice(&compressed_data);
 
         let expected_history = History {
             magic: crate::data_bytes::MAGIC,
-            format_version: crate::data_bytes::FORMAT_VERSION_NEW,
+            format_version: crate::data_bytes::FORMAT_VERSION_V3,
             pools: vec![Pool(vec![]), Pool(vec![]), Pool(vec![])],
         };
 
@@ -555,7 +555,7 @@ mod tests {
         // Test error handling for corrupted ZSTD data
         let mut history_bytes = Vec::new();
         history_bytes.extend_from_slice(&crate::data_bytes::MAGIC.to_be_bytes());
-        history_bytes.extend_from_slice(&crate::data_bytes::FORMAT_VERSION_NEW.to_be_bytes());
+        history_bytes.extend_from_slice(&crate::data_bytes::FORMAT_VERSION_V3.to_be_bytes());
         history_bytes.extend_from_slice(&[0xFF, 0xFF, 0xFF, 0xFF]); // Invalid ZSTD data
 
         let result = from_bytes::<HistoryFromBytes>(&history_bytes);
@@ -570,7 +570,7 @@ mod tests {
 
         let mut history_bytes = Vec::new();
         history_bytes.extend_from_slice(&crate::data_bytes::MAGIC.to_be_bytes());
-        history_bytes.extend_from_slice(&crate::data_bytes::FORMAT_VERSION_NEW.to_be_bytes());
+        history_bytes.extend_from_slice(&crate::data_bytes::FORMAT_VERSION_V3.to_be_bytes());
         history_bytes.extend_from_slice(&compressed_data);
 
         let result = from_bytes::<HistoryFromBytes>(&history_bytes);
@@ -591,14 +591,14 @@ mod tests {
         // Build v2 format
         let mut v2_bytes = Vec::new();
         v2_bytes.extend_from_slice(&crate::data_bytes::MAGIC.to_be_bytes());
-        v2_bytes.extend_from_slice(&crate::data_bytes::FORMAT_VERSION_OLD.to_be_bytes());
+        v2_bytes.extend_from_slice(&crate::data_bytes::FORMAT_VERSION_V2.to_be_bytes());
         v2_bytes.extend_from_slice(&pool_data);
 
         // Build v3 format
         let compressed_data = zstd::encode_all(&pool_data[..], 3)?;
         let mut v3_bytes = Vec::new();
         v3_bytes.extend_from_slice(&crate::data_bytes::MAGIC.to_be_bytes());
-        v3_bytes.extend_from_slice(&crate::data_bytes::FORMAT_VERSION_NEW.to_be_bytes());
+        v3_bytes.extend_from_slice(&crate::data_bytes::FORMAT_VERSION_V3.to_be_bytes());
         v3_bytes.extend_from_slice(&compressed_data);
 
         let v2_history = History::from(from_bytes::<HistoryFromBytes>(&v2_bytes)?);
@@ -610,11 +610,11 @@ mod tests {
         // But different format versions
         assert_eq!(
             v2_history.format_version,
-            crate::data_bytes::FORMAT_VERSION_OLD
+            crate::data_bytes::FORMAT_VERSION_V2
         );
         assert_eq!(
             v3_history.format_version,
-            crate::data_bytes::FORMAT_VERSION_NEW
+            crate::data_bytes::FORMAT_VERSION_V3
         );
 
         Ok(())

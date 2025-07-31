@@ -78,7 +78,7 @@ mod serde_tests {
         let pool = Pool(vec![sentence]);
         let history = History {
             magic: crate::data_bytes::MAGIC,
-            format_version: crate::data_bytes::FORMAT_VERSION_OLD,
+            format_version: crate::data_bytes::FORMAT_VERSION_V2,
             pools: vec![pool],
         };
         assert_eq!(

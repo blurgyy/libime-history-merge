@@ -8,15 +8,15 @@ use crate::{
 };
 
 pub const MAGIC: u32 = 0x000FC315;
-pub const FORMAT_VERSION_OLD: u32 = 0x02;
-pub const FORMAT_VERSION_NEW: u32 = 0x03;
+pub const FORMAT_VERSION_V2: u32 = 0x02;
+pub const FORMAT_VERSION_V3: u32 = 0x03;
 
 impl History {
     /// Load a history object from a [`libime`][libime]-compatible user history blob.  The format
     /// is described as follows:
     ///
     /// * The blob begins with a 4-byte **file magic** [`00 0f c3 15`][MAGIC], then a 4-byte
-    ///   **format version** [`00 00 00 02`][FORMAT_VERSION_OLD] or [`00 00 00 03`][FORMAT_VERSION_NEW], followed by 3 **pool**s.
+    ///   **format version** [`00 00 00 02`][FORMAT_VERSION_V2] or [`00 00 00 03`][FORMAT_VERSION_V3], followed by 3 **pool**s.
     /// * For version 2: The pools follow directly after the header.
     /// * For version 3: The pools are ZSTD compressed after the header.
     /// * Each **pool** begins with a 4-byte **size** specifying the number of **sentence**(s)
@@ -31,7 +31,7 @@ impl History {
     /// encoded.
     ///
     /// [file-magic]: crate::data_bytes::MAGIC
-    /// [format-version]: crate::data_bytes::FORMAT_VERSION_OLD
+    /// [format-version]: crate::data_bytes::FORMAT_VERSION_V2
     /// [libime]: <https://github.com/fcitx/libme>
     /// [endianness-wiki]: <https://en.wikipedia.org/wiki/Endianness>
     /// [nibble-wiki]: <https://en.wikipedia.org/wiki/Nibble>
@@ -161,7 +161,7 @@ impl<'de> Deserialize<'de> for HistoryFromBytes {
                 }
                 let format_version = u32::from_be_bytes(format_version_bytes.try_into().unwrap());
                 match format_version {
-                    FORMAT_VERSION_OLD => {
+                    FORMAT_VERSION_V2 => {
                         // Old format: pools follow directly
                         let pools = ByteSequenceVisitor::new().visit_seq(seq)?;
                         Ok(HistoryFromBytes {
@@ -170,7 +170,7 @@ impl<'de> Deserialize<'de> for HistoryFromBytes {
                             pools,
                         })
                     }
-                    FORMAT_VERSION_NEW => {
+                    FORMAT_VERSION_V3 => {
                         // New format: remaining data is ZSTD compressed
                         // Collect all remaining bytes
                         let mut compressed_data = Vec::new();
@@ -212,7 +212,7 @@ impl<'de> Deserialize<'de> for HistoryFromBytes {
                     }
                     _ => Err(serde::de::Error::custom(format!(
                         "Unsupported format version (expected 0x{:08x} or 0x{:08x}, got 0x{:08x})",
-                        FORMAT_VERSION_OLD, FORMAT_VERSION_NEW, format_version,
+                        FORMAT_VERSION_V2, FORMAT_VERSION_V3, format_version,
                     ))),
                 }
             }
