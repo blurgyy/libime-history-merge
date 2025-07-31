@@ -24,7 +24,7 @@
           default = libime-history-merge;
           libime-history-merge = pkgs.rustPlatform.buildRustPackage {
             pname = "libime-history-merge";
-            version = "0.3.0";
+            version = (builtins.fromTOML (builtins.readFile ./Cargo.toml)).package.version;
             src = lib.cleanSource ./.;
             cargoLock.lockFile = ./Cargo.lock;
             meta = {
